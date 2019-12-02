@@ -113,7 +113,7 @@ HI_S32 SvpSampleSegnet(const HI_CHAR *pszModelName, const HI_CHAR *paszPicList[]
         CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail, "Error(%#x):SvpSampleSegnetForword failed!", s32Ret);
 
 #ifdef USE_OPENCV
-        string strSegImgPath = imgNameRecoder[0].first + "_seg.png";
+        string strSegImgPath = imgNameRecoder[0].fileName + "_seg.png";
         strSegImgPath = strResultFolderDir + strSegImgPath;
         s32Ret = SVPUtils_WriteSegment(&stClfParam.astDst[0], strSegImgPath.c_str());
         CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail, "Error(%#x):SVPUtils_WriteSegment failed!", s32Ret);
@@ -145,7 +145,7 @@ HI_S32 SvpSampleSegnet(const HI_CHAR *pszModelName, const HI_CHAR *paszPicList[]
         CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail, "SvpSampleSegnetForword failed");
 
 #ifdef USE_OPENCV
-        string strSegImgPath = imgNameRecoder[0].first + "_seg.png";
+        string strSegImgPath = imgNameRecoder[0].fileName + "_seg.png";
         strSegImgPath = strResultFolderDir + strSegImgPath;
         s32Ret = SVPUtils_WriteSegment(&stClfParam.astDst[0], strSegImgPath.c_str());
         CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail, "Error(%#x):SVPUtils_WriteSegment failed!", s32Ret);

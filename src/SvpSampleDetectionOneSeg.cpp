@@ -126,18 +126,29 @@ HI_S32 SvpSampleDetOneSegGetResult(SVP_NNIE_ONE_SEG_DET_S *pstDetParam,
             for (HI_U32 i = 0; i < p32BoxNum[j]; i++)
             {
                 SVPUtils_TaggedBox_S stTaggedBox;
-                stTaggedBox.stRect.x = (HI_U32)astBoxesResult[i].f32Xmin;
-                stTaggedBox.stRect.y = (HI_U32)astBoxesResult[i].f32Ymin;
-                stTaggedBox.stRect.w = (HI_U32)(astBoxesResult[i].f32Xmax - astBoxesResult[i].f32Xmin);
-                stTaggedBox.stRect.h = (HI_U32)(astBoxesResult[i].f32Ymax - astBoxesResult[i].f32Ymin);
+                stTaggedBox.stRect.x =astBoxesResult[i].f32Xmin;
+                stTaggedBox.stRect.y =astBoxesResult[i].f32Ymin;
+                stTaggedBox.stRect.w =(astBoxesResult[i].f32Xmax - astBoxesResult[i].f32Xmin);
+                stTaggedBox.stRect.h =(astBoxesResult[i].f32Ymax - astBoxesResult[i].f32Ymin);
                 stTaggedBox.fScore = astBoxesResult[i].f32ClsScore;
                 stTaggedBox.u32Class = astBoxesResult[i].u32MaxScoreIndex;
                 vTaggedBoxes.push_back(stTaggedBox);
             }
+			
+			if (imgNameRecoder[j].suffix== "bgr") {		//如果输入是标准的bgr的raw图，且大小为网络输入层的大小，则按照作者原始代码执行
+				string strBoxedImgPath = imgNameRecoder[j].fileName + "_det.png";
+				strBoxedImgPath = strResultFolderDir + strBoxedImgPath;
+				SVPUtils_DrawBoxes(pstDetParam->astSrc, RGBPLANAR, strBoxedImgPath.c_str(), vTaggedBoxes, j);
+			}
+			else {
+				string imgPath = imgNameRecoder[j].path;			
+				string saveBoxedImgPath = imgNameRecoder[j].fileName + "_det.png";
+				saveBoxedImgPath = strResultFolderDir + saveBoxedImgPath;
+				DrawBoxes(imgPath, saveBoxedImgPath.c_str(), vTaggedBoxes);
 
-            string strBoxedImgPath = imgNameRecoder[j].first + "_det.png";
-            strBoxedImgPath = strResultFolderDir + strBoxedImgPath;
-            SVPUtils_DrawBoxes(pstDetParam->astSrc, RGBPLANAR, strBoxedImgPath.c_str(), vTaggedBoxes, j);
+			}
+		
+
         }
     }
 #endif

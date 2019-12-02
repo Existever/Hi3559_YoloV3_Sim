@@ -3,12 +3,20 @@
 #include <opencv2/opencv.hpp>
 #include "cv_read_image.h"
 
-HI_S32 SVPUtils_ReadImage(const HI_CHAR *pszImgPath, SVP_SRC_BLOB_S *pstBlob, HI_U8** ppu8Ptr)
+HI_S32 SVPUtils_ReadImage(const HI_CHAR *pszImgPath, SVP_SRC_BLOB_S *pstBlob, HI_U8** ppu8Ptr, HI_U32 &width, HI_U32&height)
 /*
-¶ÁÈ¡ÊäÈëÍ¼Ïñ£¬²¢resizeµ½ÍøÂçÊäÈë´óÐ¡£¨ÎÞÌî³äµÄresize£©
+è¯»å–è¾“å…¥å›¾åƒï¼Œå¹¶resizeåˆ°ç½‘ç»œè¾“å…¥å¤§å°ï¼ˆæ— å¡«å……çš„resizeï¼‰
 */
 {
     cv::Mat srcMat = cv::imread(pszImgPath, cv::IMREAD_COLOR);
+
+	if (srcMat.empty()) {
+		printf("SVPUtils_ReadImage:read  %s failed\n", pszImgPath);
+		return HI_FAILURE;
+	}
+	width = srcMat.cols;
+	height = srcMat.rows;
+
     HI_U32 u32DstWidth = pstBlob->unShape.stWhc.u32Width;
     HI_U32 u32DstHeight = pstBlob->unShape.stWhc.u32Height;
     cv::Mat dstMat(u32DstHeight, u32DstWidth, CV_8UC3);

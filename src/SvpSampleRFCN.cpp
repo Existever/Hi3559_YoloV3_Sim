@@ -265,7 +265,7 @@ HI_S32 SvpSampleWKRFCNRun(const HI_CHAR *pszModel, const HI_CHAR *paszPicList[],
         };
         vTaggedBoxes.push_back(stTaggedBox);
     }
-    strBoxedImagePath = strResultFolderDir + imgNameRecoder[0].first + "_det.png";
+    strBoxedImagePath = strResultFolderDir + imgNameRecoder[0].fileName + "_det.png";
     s32Ret = SVPUtils_DrawBoxes(&stDetParam.astSrc[0], RGBPLANAR, strBoxedImagePath.c_str(), vTaggedBoxes);
     CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FREE_ASSIST_MEM, "Error(%#x): SVPUtils_DrawBoxes failed!", s32Ret);
 #endif

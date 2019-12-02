@@ -425,39 +425,47 @@ HI_S32 SvpSampleReadAllSrcImg(FILE *afp[], SVP_SRC_BLOB_S astSrcBlobs[],
     return s32Ret;
 }
 
-static SVP_SAMPLE_FILE_NAME_PAIR s_SvpSampleGetFileNameFromPath(std::string strImgPath)
-/*
-从文件路径中，分离出文件后缀名字
-*/
-{
-    std::string strFileNameFull;
-    std::string strBasic;
-    std::string strSuffix;
-    SVP_SAMPLE_FILE_NAME_PAIR namePair;
 
-    size_t fileNamePos = strImgPath.find_last_of("/");
-    /*  "/" not found and set pos to 0 */
-    if (fileNamePos == std::string::npos) {
-        fileNamePos = 0;
-        strFileNameFull = strImgPath;
-    }
-    else
-    {
-        strFileNameFull = strImgPath.substr(fileNamePos + 1);
-    }
 
-    size_t suffixPos = strFileNameFull.find_last_of(".");
-    if (suffixPos != std::string::npos) {
-        strSuffix = strFileNameFull.substr(suffixPos + 1);
-    }
+ SVP_SAMPLE_FILE_NAME_PAIR s_SvpSampleGetFileNameFromPath(std::string strImgPath)
+	 /*
+	 从文件路径中，分离出文件后缀名字
+	 */
+ {
+	 std::string strFileNameFull;
+	 std::string strBasic;
+	 std::string strSuffix;
+	 SVP_SAMPLE_FILE_NAME_PAIR namePair;
+	 namePair.height = 0;
+	 namePair.width = 0;
 
-    strBasic = strFileNameFull.substr(0, suffixPos);
+	 size_t fileNamePos = strImgPath.find_last_of("/");
+	 /*  "/" not found and set pos to 0 */
+	 if (fileNamePos == std::string::npos) {
+		 fileNamePos = 0;
+		 strFileNameFull = strImgPath;
+	 }
+	 else
+	 {
+		 strFileNameFull = strImgPath.substr(fileNamePos + 1);
+	 }
 
-    namePair.first = strBasic;
-    namePair.second = strSuffix;
-    return namePair;
-}
+	 size_t suffixPos = strFileNameFull.find_last_of(".");
+	 if (suffixPos != std::string::npos) {
+		 strSuffix = strFileNameFull.substr(suffixPos + 1);
+	 }
 
+	 strBasic = strFileNameFull.substr(0, suffixPos);
+
+	 //namePair.first = strBasic;			//仅仅返回文件名字，不适合后序存储结果
+	 //
+
+	 namePair.fileName = strBasic;
+	 namePair.suffix = strSuffix;
+	 namePair.path = strImgPath;
+
+	 return namePair;
+ }
 HI_S32 s_SvpSampleReadLine(FILE* fstream, HI_CHAR* buf)
 {
     HI_S32 ret = HI_SUCCESS;
@@ -523,7 +531,7 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
             s32Ret = s_SvpSampleImgPathRead(fp, aszImg);
             CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "s_SvpSampleImgPathRead failed in line(%d) num(%d)!", i, j);
 
-            imgNameRecoder.push_back(s_SvpSampleGetFileNameFromPath(string(aszImg)));
+          
 
             imgFp = SvpSampleOpenFile(aszImg, "rb");
             CHECK_EXP_RET(!imgFp, HI_FAILURE, "open file(%s) failed!", aszImg);
@@ -542,6 +550,10 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
                     pu8Ptr += pstBlob->u32Stride;
                 }
             }
+			SVP_SAMPLE_FILE_NAME_PAIR img_file = s_SvpSampleGetFileNameFromPath(string(aszImg));
+			img_file.width = pstBlob->unShape.stWhc.u32Width;
+			img_file.height = pstBlob->unShape.stWhc.u32Height;
+			imgNameRecoder.push_back(img_file);
             SvpSampleCloseFile(imgFp);
         }
     Fail1:
@@ -562,18 +574,18 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
             CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "s_SvpSampleImgPathRead failed in line(%d) num(%d)!", i, j);
 
             SVP_SAMPLE_FILE_NAME_PAIR filename = s_SvpSampleGetFileNameFromPath(string(aszImg));
-            imgNameRecoder.push_back(filename);
+          
 
 #ifdef USE_OPENCV
             HI_BOOL bIsRawImg = HI_TRUE;
 
-            std::string strSuffix = filename.second;		//将后缀转换为小写
+            std::string strSuffix = filename.suffix;		//将后缀转换为小写
             transform(strSuffix.begin(), strSuffix.end(), strSuffix.begin(), ::tolower);
 
             if (strSuffix == "jpg" || strSuffix == "jpeg"		//如果是这几种类型，可以使用opencv来读取
                 || strSuffix == "png" || strSuffix == "bmp")
             {
-                SVPUtils_ReadImage(aszImg, pstBlob, &pu8Ptr);
+                SVPUtils_ReadImage(aszImg, pstBlob, &pu8Ptr,filename.width,filename.height);
                 bIsRawImg = HI_FALSE;
             }
 
@@ -582,7 +594,8 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
             {
                 imgFp = SvpSampleOpenFile(aszImg, "rb");
                 CHECK_EXP_RET(!imgFp, HI_FAILURE, "open file(%s) failed!", aszImg);
-
+				filename.width = pstBlob->unShape.stWhc.u32Width;
+				filename.height = pstBlob->unShape.stWhc.u32Height;
                 for (c = 0; c < pstBlob->unShape.stWhc.u32Chn; c++)
                 {
                     for (h = 0; h < pstBlob->unShape.stWhc.u32Height; h++)
@@ -599,6 +612,8 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
                 }
                 SvpSampleCloseFile(imgFp);
             }
+
+			imgNameRecoder.push_back(filename);
         }
     Fail2:
         if (bFailFlag) {
@@ -620,8 +635,7 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
             s32Ret = s_SvpSampleImgPathRead(fp, aszImg);
             CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "s_SvpSampleImgPathRead failed in line(%d) num(%d)!", i, j);
 
-            imgNameRecoder.push_back(s_SvpSampleGetFileNameFromPath(string(aszImg)));
-
+            
             imgFp = SvpSampleOpenFile(aszImg, "rb");
             CHECK_EXP_RET(!imgFp, HI_FAILURE, "open file(%s) failed!", aszImg);
 
@@ -636,6 +650,11 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
                 }
                 pu8Ptr += pstBlob->u32Stride;
             }
+
+			SVP_SAMPLE_FILE_NAME_PAIR img_file = s_SvpSampleGetFileNameFromPath(string(aszImg));
+			img_file.width = pstBlob->unShape.stWhc.u32Width;
+			img_file.height = pstBlob->unShape.stWhc.u32Height;
+			imgNameRecoder.push_back(img_file);
             SvpSampleCloseFile(imgFp);
         }
     Fail3:
@@ -658,7 +677,7 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
             s32Ret = s_SvpSampleImgPathRead(fp, aszImg);
             CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "s_SvpSampleImgPathRead failed in line(%d) num(%d)!", i, j);
 
-            imgNameRecoder.push_back(s_SvpSampleGetFileNameFromPath(string(aszImg)));
+           
 
             imgFp = SvpSampleOpenFile(aszImg, "rb");
             CHECK_EXP_RET(!imgFp, HI_FAILURE, "open file(%s) failed!", aszImg);
@@ -674,6 +693,11 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
                 }
                 pu8Ptr += pstBlob->u32Stride;
             }
+
+			SVP_SAMPLE_FILE_NAME_PAIR img_file = s_SvpSampleGetFileNameFromPath(string(aszImg));
+			img_file.width = pstBlob->unShape.stWhc.u32Width;
+			img_file.height = pstBlob->unShape.stWhc.u32Height;
+			imgNameRecoder.push_back(img_file);
             SvpSampleCloseFile(imgFp);
         }
     Fail4:
@@ -695,7 +719,7 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
 
             HI_U32  *pu32TimeStep = (HI_U32*)pstBlob->unShape.stSeq.u64VirAddrStep;
 
-            imgNameRecoder.push_back(s_SvpSampleGetFileNameFromPath(string(aszImg)));
+            
 
             imgFp = SvpSampleOpenFile(aszImg, "rb");
             CHECK_EXP_RET(!imgFp, HI_FAILURE, "open file(%s) failed!", aszImg);
@@ -711,6 +735,11 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
                 }
                 pu8Ptr += pstBlob->u32Stride;
             }
+
+			SVP_SAMPLE_FILE_NAME_PAIR img_file = s_SvpSampleGetFileNameFromPath(string(aszImg));
+			img_file.width = pstBlob->unShape.stWhc.u32Width;
+			img_file.height = pstBlob->unShape.stWhc.u32Height;
+			imgNameRecoder.push_back(img_file);
             SvpSampleCloseFile(imgFp);
         }
     Fail5:

@@ -490,7 +490,7 @@ HI_S32 SvpSampleWKFasterRCNNRun(const HI_CHAR *pszModel, const HI_CHAR *paszPicL
     }
 
     /* save det result pic to strResultFolderDir, e.g. result_FASTER_RCNN_ALEX/000110_det.png */
-    strBoxedImgPath = strResultFolderDir + imgNameRecoder[0].first + "_det.png";
+    strBoxedImgPath = strResultFolderDir + imgNameRecoder[0].fileName + "_det.png";
     SVPUtils_DrawBoxes(&stDetParam.astSrc[0], RGBPLANAR, strBoxedImgPath.c_str(), vTaggedBoxes);
 #endif
 

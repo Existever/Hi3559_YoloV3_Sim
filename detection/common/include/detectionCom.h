@@ -11,6 +11,7 @@
 
 #include "hi_type.h"
 #include "hi_nnie.h"
+#include "SvpSampleWk.h"
 
 #define DETECION_DBG (0)
 
@@ -104,8 +105,8 @@ typedef struct hiSVP_SAMPLE_BOX_S
 
 typedef struct hiSVP_SAMPLE_BOX_RESULT_INFO_S
 {
-    HI_U32 u32OriImHeight;
-    HI_U32 u32OriImWidth;
+    HI_U32 u32OriImHeight;				//原始图像高度
+    HI_U32 u32OriImWidth;				//原始图像高度
     SVP_SAMPLE_BOX_S* pstBbox;
 }SVP_SAMPLE_BOX_RESULT_INFO_S;
 
@@ -232,7 +233,7 @@ typedef struct hiNNIE_MULTI_SEG_DET_ASSIST_PARA
     HI_BOOL bShareDelta;
 }NNIE_MULTI_SEG_DET_ASSIST_PARA;
 
-typedef std::pair<std::string, std::string> SVP_SAMPLE_FILE_NAME_PAIR;
+
 
 /*********************************************************
 Function: QuickExp

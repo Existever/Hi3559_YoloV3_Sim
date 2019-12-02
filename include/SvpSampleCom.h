@@ -109,6 +109,8 @@
 
 using namespace std;
 
+
+
 /*
 * load and read Wk info to pstModelBuf from path pszModelName
 */
@@ -183,8 +185,9 @@ HI_S32 SvpSampleMallocRPNBlob(SVP_BLOB_S *pstBlob, HI_U32 u32Size, HI_U32 u32Usr
 */
 void SvpSampleFreeRPNBlob(SVP_BLOB_S *pstBlob);
 
-/*SVP_SAMPLE_FILE_NAME_PAIR first:  basic filename, second: filename suffix*/
-typedef pair<string, string> SVP_SAMPLE_FILE_NAME_PAIR;
+///*SVP_SAMPLE_FILE_NAME_PAIR first:  basic filename, second: filename suffix*/
+//typedef pair<string, string> SVP_SAMPLE_FILE_NAME_PAIR;
+
 /*
 * Read one image(U8/YVU420SP/YVU422SP/S32/VEC_S32/SEQ_S32) from one FILE,
 */
@@ -222,5 +225,8 @@ HI_S32 SvpSampleDumpBlob(const string& fileName, const SVP_BLOB_S* ptrBlob);
 * resume binary file to a blob
 */
 HI_S32 SvpSampleResumeBlob(const string& fileName, SVP_BLOB_S* ptrBlob);
+
+SVP_SAMPLE_FILE_NAME_PAIR s_SvpSampleGetFileNameFromPath(std::string strImgPath);
+SVP_SAMPLE_FILE_NAME_PAIR OnlyGetFileNameFromPath(std::string strImgPath);
 
 #endif //__HI_SVP_SAMPLE_COM_H__

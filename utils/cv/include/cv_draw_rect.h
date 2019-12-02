@@ -17,10 +17,10 @@ typedef enum tagSVPUtils_ImageType_E
 
 typedef struct tagSVPUtils_Rect_S
 {
-    HI_U32 x;
-    HI_U32 y;
-    HI_U32 w;
-    HI_U32 h;
+    HI_FLOAT x;
+    HI_FLOAT y;
+    HI_FLOAT w;
+    HI_FLOAT h;
 } SVPUtils_Rect_S;
 
 typedef struct tagSVPUtil_TaggedBox_S
@@ -37,4 +37,7 @@ HI_S32 SVPUtils_DrawBoxes(const SVP_SRC_BLOB_S *pstSrcBlob, SVPUtils_ImageType_E
     const HI_CHAR *pszDstImg, const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes,
     HI_U32 u32srcNumIdx = 0);
 
+
+HI_S32 DrawBoxes(const std::string img_path, const HI_CHAR *pszDstImgPath,
+	const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes);
 #endif

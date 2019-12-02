@@ -80,7 +80,7 @@ void SvpSampleWkYoloV3GetResultForOneBlob(SVP_BLOB_S *pstDstBlob,						//nnie中
     HI_FLOAT* pf32BoxTmp = (HI_FLOAT*)(pf32InputData + inputdate_size);////tep_box_size
     SVP_SAMPLE_BOX_S* pstBox = (SVP_SAMPLE_BOX_S*)(pf32BoxTmp + u32TmpBoxSize);////assit_box_size
 
-    printf("n:%u, c:%u, h:%u, w:%u\n",
+    printf("GetResultForOneBlob:%u, c:%u, h:%u, w:%u\n",
         pstDstBlob->u32Num,
         pstDstBlob->unShape.stWhc.u32Chn,
         pstDstBlob->unShape.stWhc.u32Height,
@@ -195,14 +195,14 @@ void SvpSampleWKYoloV3BoxPostProcess(SVP_SAMPLE_BOX_S* pstInputBbox, HI_U32 u32I
     //Nms
     SvpDetYoloNonMaxSuppression(pstInputBbox, u32InputBboxNum, f32NmsThresh, u32MaxBoxNum);
 
-    //Get the result,输出结果按照归一化到[0,1]
+    //Get the result,输出结果按照归一化到[0,1]处理，方便后面画图回到原始分辨率
     HI_U32 u32BoxResultNum = 0;
     for (HI_U32 n = 0; (n < u32InputBboxNum) && (u32BoxResultNum < u32MaxBoxNum); n++) {
         if (0 == pstInputBbox[n].u32Mask) {
-            pstResultBbox[u32BoxResultNum].f32Xmin = SVP_SAMPLE_MAX(pstInputBbox[n].f32Xmin * u32SrcWidth, 0);
-            pstResultBbox[u32BoxResultNum].f32Xmax = SVP_SAMPLE_MIN(pstInputBbox[n].f32Xmax * u32SrcWidth, u32SrcWidth);
-            pstResultBbox[u32BoxResultNum].f32Ymax = SVP_SAMPLE_MIN(pstInputBbox[n].f32Ymax * u32SrcHeight, u32SrcHeight);
-            pstResultBbox[u32BoxResultNum].f32Ymin = SVP_SAMPLE_MAX(pstInputBbox[n].f32Ymin * u32SrcHeight, 0);
+            pstResultBbox[u32BoxResultNum].f32Xmin = SVP_SAMPLE_MAX(pstInputBbox[n].f32Xmin , 0);
+            pstResultBbox[u32BoxResultNum].f32Xmax = SVP_SAMPLE_MIN(pstInputBbox[n].f32Xmax , 1.0);
+            pstResultBbox[u32BoxResultNum].f32Ymax = SVP_SAMPLE_MIN(pstInputBbox[n].f32Ymax , 1.0);
+            pstResultBbox[u32BoxResultNum].f32Ymin = SVP_SAMPLE_MAX(pstInputBbox[n].f32Ymin , 0);
             pstResultBbox[u32BoxResultNum].f32ClsScore = pstInputBbox[n].f32ClsScore;
             pstResultBbox[u32BoxResultNum].u32MaxScoreIndex = pstInputBbox[n].u32MaxScoreIndex;
 

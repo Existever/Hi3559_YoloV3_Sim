@@ -82,6 +82,13 @@ HI_S32 SVPUtils_DrawBoxes(const SVP_SRC_BLOB_S *pstSrcBlob, SVPUtils_ImageType_E
     for (SVPUtils_TaggedBox_S stBox : vTaggedBoxes)
     {
         SVPUtils_Rect_S stRect = stBox.stRect;
+		stRect.x *= dstMat.cols;				//将[0,1]空间的结果转换到输入图像分辨率上画图
+		stRect.y *= dstMat.rows;
+		stRect.w *= dstMat.cols;
+		stRect.h *= dstMat.rows;
+
+		printf("draw box :%6.2f %6.2f %6.2f %6.2f\n", stRect.x, stRect.y, stRect.w, stRect.h);
+
         rectangle(dstMat, { (HI_S32)(stRect.x), (HI_S32)(stRect.y) }, {(HI_S32)(stRect.x+stRect.w), (HI_S32)(stRect.y+stRect.h)}, lineColor, 2, 1, 0);
         putText(dstMat, std::to_string(stBox.u32Class), Point(stRect.x, stRect.y - 8), FONT_HERSHEY_SIMPLEX, fFontSize, fontColor, 1, 8);
         putText(dstMat, std::to_string(stBox.fScore), Point(stRect.x, stRect.y + 8), FONT_HERSHEY_SIMPLEX, fFontSize, fontColor, 1, 8);
@@ -97,7 +104,7 @@ HI_S32 SVPUtils_DrawBoxes(const SVP_SRC_BLOB_S *pstSrcBlob, SVPUtils_ImageType_E
 }
 
 
-HI_S32 SVPUtils_DrawBoxesMy(const string img_path, const HI_CHAR *pszDstImgPath,
+HI_S32 DrawBoxes(const string img_path, const HI_CHAR *pszDstImgPath,
 	 const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes)
 {	
 	cv::Mat dstMat=cv::imread(img_path, IMREAD_COLOR);
@@ -114,6 +121,13 @@ HI_S32 SVPUtils_DrawBoxesMy(const string img_path, const HI_CHAR *pszDstImgPath,
 	for (SVPUtils_TaggedBox_S stBox : vTaggedBoxes)
 	{
 		SVPUtils_Rect_S stRect = stBox.stRect;
+		stRect.x *= dstMat.cols;				//将[0,1]空间的结果转换到输入图像分辨率上画图
+		stRect.y *= dstMat.rows;
+		stRect.w *= dstMat.cols;
+		stRect.h *= dstMat.rows;
+
+		printf("draw box :%6.2f %6.2f %6.2f %6.2f\n", stRect.x, stRect.y, stRect.w, stRect.h);
+
 		rectangle(dstMat, { (HI_S32)(stRect.x), (HI_S32)(stRect.y) }, { (HI_S32)(stRect.x + stRect.w), (HI_S32)(stRect.y + stRect.h) }, lineColor, 2, 1, 0);
 		putText(dstMat, std::to_string(stBox.u32Class), Point(stRect.x, stRect.y - 8), FONT_HERSHEY_SIMPLEX, fFontSize, fontColor, 1, 8);
 		putText(dstMat, std::to_string(stBox.fScore), Point(stRect.x, stRect.y + 8), FONT_HERSHEY_SIMPLEX, fFontSize, fontColor, 1, 8);

@@ -11,6 +11,7 @@
 #include "hi_type.h"
 #include "hi_nnie.h"
 
+
 #define STRIDE_ALIGN  (16)
 #define HI_PI (3.1415926535897932384626433832795)
 
@@ -33,13 +34,28 @@
 #endif
 
 #ifndef SVP_WK_QUANT_BASE
-#define SVP_WK_QUANT_BASE  (0x1000)    //量化基准�?096
+#define SVP_WK_QUANT_BASE  (0x1000)    //量化基准4096
 #endif
 
 using namespace std;
 
+
+typedef struct IMG_INFO
+{
+	// those below param is shared by all segments in one net.
+	HI_U32 width;
+	HI_U32 height;
+	string path;
+	string fileName;
+	string suffix;
+
+}IMG_INFO_S;
+
 /*SVP_SAMPLE_FILE_NAME_PAIR first:  basic filename, second: filename suffix*/
-typedef pair<string, string> SVP_SAMPLE_FILE_NAME_PAIR;
+typedef IMG_INFO_S  SVP_SAMPLE_FILE_NAME_PAIR;
+
+
+
 
 typedef struct hiSVP_WK_PARAM_RUNONCE_S
 {
@@ -123,7 +139,7 @@ typedef struct hiSVP_NNIE_ONE_SEG_DET_S
     HI_U32 u32ModelBufSize;
     HI_U32 u32TmpBufSize;
 
-    SVP_NNIE_MODEL_S    stModel;			//一个网络模型，可能包含多个段，每个段相当于是一个子网络，有自己的输入输出参�?
+    SVP_NNIE_MODEL_S    stModel;			//一个网络模型，可能包含多个段，每个段相当于是一个子网络，有自己的输入输出参数
     SVP_MEM_INFO_S      stModelBuf;
     SVP_MEM_INFO_S      stTmpBuf;
 

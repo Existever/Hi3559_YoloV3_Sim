@@ -7,6 +7,7 @@
 /************************************************************************/
 /* read image to blob support format by cv utils                        */
 /************************************************************************/
-HI_S32 SVPUtils_ReadImage(const HI_CHAR *pszImgPath, SVP_SRC_BLOB_S *pstBlob, HI_U8** ppu8Ptr);
+
+HI_S32 SVPUtils_ReadImage(const HI_CHAR *pszImgPath, SVP_SRC_BLOB_S *pstBlob, HI_U8** ppu8Ptr, HI_U32 &width, HI_U32&height);
 
 #endif

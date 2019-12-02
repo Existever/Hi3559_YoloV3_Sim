@@ -1,4 +1,5 @@
 #include "detectionCom.h"
+#include "SvpSampleCom.h"
 
  #include <iostream>
  #include <fstream>
@@ -73,7 +74,9 @@ void SvpDetYoloResultPrint(const SVP_SAMPLE_BOX_RESULT_INFO_S *pstResultBoxesInf
     HI_U32 i = 0;
 
     /* e.g. result_SVP_SAMPLE_YOLO_V1/dog_bike_car_448x448_detResult.txt */
-    string fileName = strResultFolderDir + imgNamePair.first + "_detResult.txt";
+
+	
+    string fileName = strResultFolderDir + imgNamePair.fileName + "_detResult.txt";
     ofstream fout(fileName.c_str());
     if (!fout.good()) {
         printf("%s open failure!", fileName.c_str());
@@ -83,8 +86,8 @@ void SvpDetYoloResultPrint(const SVP_SAMPLE_BOX_RESULT_INFO_S *pstResultBoxesInf
     PrintBreakLine(HI_TRUE);
 
     /* detResult start with origin image width and height */
-    fout << pstResultBoxesInfo->u32OriImWidth << "  " << pstResultBoxesInfo->u32OriImHeight << endl;
-    cout << pstResultBoxesInfo->u32OriImWidth << "  " << pstResultBoxesInfo->u32OriImHeight << endl;
+    fout << imgNamePair.width << "  " << imgNamePair.height << endl;
+    cout << imgNamePair.width << "  " << imgNamePair.height << endl;
 
     //printf("imgName\tclass\tconfidence\txmin\tymin\txmax\tymax\n");
 
@@ -93,11 +96,14 @@ void SvpDetYoloResultPrint(const SVP_SAMPLE_BOX_RESULT_INFO_S *pstResultBoxesInf
         HI_CHAR resultLine[512];
 
         snprintf(resultLine, 512, "%s  %4d  %9.8f  %4.2f  %4.2f  %4.2f  %4.2f\n",
-            imgNamePair.first.c_str(),
+            imgNamePair.fileName.c_str(),
             pstResultBoxesInfo->pstBbox[i].u32MaxScoreIndex,
             pstResultBoxesInfo->pstBbox[i].f32ClsScore,
-            pstResultBoxesInfo->pstBbox[i].f32Xmin, pstResultBoxesInfo->pstBbox[i].f32Ymin,
-            pstResultBoxesInfo->pstBbox[i].f32Xmax, pstResultBoxesInfo->pstBbox[i].f32Ymax);
+            pstResultBoxesInfo->pstBbox[i].f32Xmin* imgNamePair.width,
+			pstResultBoxesInfo->pstBbox[i].f32Ymin*imgNamePair.height,
+            pstResultBoxesInfo->pstBbox[i].f32Xmax* imgNamePair.width,
+			pstResultBoxesInfo->pstBbox[i].f32Ymax*imgNamePair.height);
+
 
         fout << resultLine;
         cout << resultLine;
