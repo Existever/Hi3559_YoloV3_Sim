@@ -3,7 +3,7 @@
 
 #include "mpi_nnie.h"
 
-#define SVP_SAMPLE_CLS_TOP_N (5)
+#define SVP_SAMPLE_CLS_TOP_N (5)			//输出分类的top5的类别
 
 const HI_CHAR *g_paszPicList_c[][SVP_NNIE_MAX_INPUT_NUM] = {
     { "../../data/classification/lenet/image_test_list_y.txt"      },
@@ -73,8 +73,8 @@ HI_S32 SvpSampleGetTopNAfterSoftmax(SVP_BLOB_S *pstBlob, SVP_SAMPLE_CLF_RES_S *p
     for (HI_U32 n = 0; n < pstBlob->u32Num; n++)
     {
         // get score[n] base from DstBlob addr
-        HI_S32 *ps32Score = (HI_S32*)((HI_U8*)pstBlob->u64VirAddr + n * u32LineStride);
-        SVP_SAMPLE_CLF_RES_S *pstClfResN = pstClfRes + u32TopN * n;
+        HI_S32 *ps32Score = (HI_S32*)((HI_U8*)pstBlob->u64VirAddr + n * u32LineStride);		//存储地址u64VirAddr是按照字节计数的，因此先转化为u8类型的地址，再加stride,最后根据存储的float类型转为float类型指针
+        SVP_SAMPLE_CLF_RES_S *pstClfResN = pstClfRes + u32TopN * n;						//存储结果的首地址
 
         // set score to classification result struct
         for (HI_U32 classId = 0; classId < u32ClfNum; classId++) {
@@ -85,7 +85,6 @@ HI_S32 SvpSampleGetTopNAfterSoftmax(SVP_BLOB_S *pstBlob, SVP_SAMPLE_CLF_RES_S *p
         for (HI_U32 i = 0; i < u32TopN; i++)
         {
             HI_U32 topI = i;
-
             // get max confidence index in rest data
             for (HI_U32 j = i + 1; j < u32ClfNum; j++) {
                 if (ps32IdxConf[topI].u32Confidence < ps32IdxConf[j].u32Confidence) {
@@ -144,10 +143,12 @@ HI_S32 SvpSampleCnnClassificationForword(SVP_NNIE_ONE_SEG_S *pstClfParam, SVP_NN
     HI_BOOL bFinish = HI_FALSE;
     HI_BOOL bBlock = HI_TRUE;
 
+	//执行前向传播，
     s32Ret = HI_MPI_SVP_NNIE_Forward(&SvpNnieHandle, pstClfParam->astSrc, &pstClfParam->stModel,
         pstClfParam->astDst, &pstClfParam->stCtrl, bInstant);
     CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "Error(%#x): CNN_Forward failed!", s32Ret);
 
+	//等待前向传播完成
     s32Ret = HI_MPI_SVP_NNIE_Query(enNnieId, SvpNnieHandle, &bFinish, bBlock);
     while (HI_ERR_SVP_NNIE_QUERY_TIMEOUT == s32Ret) {
         USLEEP(100);
@@ -155,6 +156,8 @@ HI_S32 SvpSampleCnnClassificationForword(SVP_NNIE_ONE_SEG_S *pstClfParam, SVP_NN
     }
     CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "Error(%#x): query failed!", s32Ret);
 
+
+	//后处理
     if (pstClfCfg->bNeedLabel)
     {
         for (HI_U32 i = 0; i < pstClfParam->stModel.astSeg[0].u16DstNum; i++)
@@ -181,6 +184,13 @@ HI_S32 SvpSampleCnnClassificationForword(SVP_NNIE_ONE_SEG_S *pstClfParam, SVP_NN
 
 /*classification with input images and labels, print the top-N result */
 HI_S32 SvpSampleCnnClassification(const HI_CHAR *pszModelName, const HI_CHAR *paszPicList[], const HI_CHAR *paszLabel[], HI_S32 s32Cnt)
+/*
+const HI_CHAR *pszModelName,			//wk 模型文件名
+const HI_CHAR *paszPicList[],			//输入图片路径存放的txt，paszPicList[0],对应第一个源的输入图片构成的list，paszPicList[1],对应第二个源的输入图片构成的list
+const HI_CHAR *paszLabel[],				//输入图片的标签
+HI_S32 s32Cnt							//一共有这样的几组测试，最多为16，SVP_NNIE_MAX_INPUT_NUM
+
+*/
 {
     /**************************************************************************/
     /* 1. check input para */
@@ -198,20 +208,20 @@ HI_S32 SvpSampleCnnClassification(const HI_CHAR *pszModelName, const HI_CHAR *pa
     HI_S32 s32Ret = HI_SUCCESS;
 
     HI_U32 u32TopN = SVP_SAMPLE_CLS_TOP_N;
-    HI_U32 u32MaxInputNum = SVP_NNIE_MAX_INPUT_NUM;
+    HI_U32 u32MaxInputNum = SVP_NNIE_MAX_INPUT_NUM;				//一个段中某个输入源的图片个数
     HI_U32 u32Batch   = 0;
     HI_U32 u32LoopCnt = 0;
     HI_U32 u32StartId = 0;
 
-    SVP_NNIE_ONE_SEG_S stClfParam = { 0 };
-    SVP_NNIE_CFG_S     stClfCfg = { 0 };
+    SVP_NNIE_ONE_SEG_S stClfParam = { 0 };			//
+    SVP_NNIE_CFG_S     stClfCfg = { 0 };			//配置文件信息
 
     /**************************************************************************/
     /* 3. init resources */
     /* mkdir to save result, name folder by model type */
     string strNetType = "SVP_SAMPLE_CLF";
     string strResultFolderDir = "result_" + strNetType + "/";
-    s32Ret = SvpSampleMkdir(strResultFolderDir.c_str());
+    s32Ret = SvpSampleMkdir(strResultFolderDir.c_str());												//创建保存结果的文件夹
     CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "SvpSampleMkdir(%s) failed", strResultFolderDir.c_str());
 
     stClfCfg.pszModelName = pszModelName;
@@ -221,6 +231,7 @@ HI_S32 SvpSampleCnnClassification(const HI_CHAR *pszModelName, const HI_CHAR *pa
     stClfCfg.u32TopN = u32TopN;
     stClfCfg.bNeedLabel = HI_TRUE;
 
+	//使用前向配置参数加载wk文件，设置nnie模型参数，分配wk模型空间、输入输出blob空间以及后处理的空间
     s32Ret = SvpSampleOneSegCnnInit(&stClfCfg, &stClfParam);
     CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "SvpSampleOneSegCnnInitMem failed");
 
@@ -250,7 +261,7 @@ HI_S32 SvpSampleCnnClassification(const HI_CHAR *pszModelName, const HI_CHAR *pa
         s32Ret = SvpSampleCnnClassificationForword(&stClfParam, &stClfCfg);
         CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail, "SvpSampleCnnClassificationForword failed");
 
-        u32StartId += u32Batch;
+        u32StartId += u32Batch;			// u32StartId 个人觉得起不到多个loop的作用，除非将u32StartId当做参数传递给SvpSampleReadAllSrcImg，每个loop依据u32StartId开始从list中读取数据
     }
 
     // the rest of images
@@ -296,6 +307,7 @@ void SvpSampleCnnClfLenet()
 
 void SvpSampleCnnClfAlexnet()
 {
+	//alexnet分类模型测试
     printf("%s start ...\n", __FUNCTION__);
     SvpSampleCnnClassification(
         g_paszModelName_c[SVP_SAMPLE_WK_CLF_NET_ALEXNET],

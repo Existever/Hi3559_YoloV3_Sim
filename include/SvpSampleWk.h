@@ -112,16 +112,16 @@ typedef struct hiSVP_NNIE_ONE_SEG_S
     SVP_MEM_INFO_S      stTskBuf;
     HI_U32 u32TaskBufSize;
 
-    SVP_SRC_BLOB_S astSrc[SVP_NNIE_MAX_INPUT_NUM];
-    SVP_DST_BLOB_S astDst[SVP_NNIE_MAX_OUTPUT_NUM];
+    SVP_SRC_BLOB_S astSrc[SVP_NNIE_MAX_INPUT_NUM];			//输入源节点
+    SVP_DST_BLOB_S astDst[SVP_NNIE_MAX_OUTPUT_NUM];			//输出目的节点
 
-    SVP_NNIE_FORWARD_CTRL_S stCtrl;
+    SVP_NNIE_FORWARD_CTRL_S stCtrl;							//nnie前向控制箱信息
 
     //memory needed by post-process of getting topN
     SVP_SAMPLE_CLF_RES_S *pstMaxClfIdScore;
     SVP_SAMPLE_CLF_RES_S *pastClfRes[SVP_NNIE_MAX_OUTPUT_NUM];
     HI_U32 au32ClfNum[SVP_NNIE_MAX_OUTPUT_NUM];
-}SVP_NNIE_ONE_SEG_S;
+}SVP_NNIE_ONE_SEG_S;						//分类的时候网络模型结构体
 
 typedef struct hiSVP_SAMPLE_RESULT_MEM_HEAD_S
 {
@@ -186,10 +186,10 @@ typedef struct hiSVP_NNIE_CFG_S
     const HI_CHAR *paszPicList[SVP_NNIE_MAX_INPUT_NUM];		//仿真图片的路径存放的list
     const HI_CHAR *paszLabel[SVP_NNIE_MAX_OUTPUT_NUM];
 
-    HI_U32 u32MaxInputNum;
+    HI_U32 u32MaxInputNum;						//一个段中某个输入源的图片个数
     HI_U32 u32MaxBboxNum;
 
-    HI_U32 u32TopN;
+    HI_U32 u32TopN;							//分类概率输出topn的类别概率
     HI_BOOL bNeedLabel;
 }SVP_NNIE_CFG_S;
 

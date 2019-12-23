@@ -49,8 +49,14 @@ Fail:
 
 template<class sT>
 static HI_S32 SvpSampleLoadImageList(HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH], const SVP_NNIE_CFG_S *pstClfCfg, sT *pstComfParam)
+/*
+依据配置信息pstClfCfg中图像路径list，打开对应的文件，检测每个list中的图片个数是否相等，
+如果相等将文件指针更新到pstComfParam结构体中 的输入节点文件指针fpSrc中
+如果有多个list则代表对应多个输入源节点
+
+*/
 {
-	HI_U16 u16SrcNum = pstComfParam->stModel.astSeg[0].u16SrcNum;
+	HI_U16 u16SrcNum = pstComfParam->stModel.astSeg[0].u16SrcNum;			//网络输入节点个数
 	HI_U32 u32Num = 0;
 
 	CHECK_EXP_RET(pstClfCfg->paszPicList[0] == NULL, HI_ERR_SVP_NNIE_ILLEGAL_PARAM,
@@ -59,8 +65,10 @@ static HI_S32 SvpSampleLoadImageList(HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH], const 
 	pstComfParam->fpSrc[0] = SvpSampleOpenFile(pstClfCfg->paszPicList[0], "r");
 	CHECK_EXP_RET(pstComfParam->fpSrc[0] == NULL, HI_ERR_SVP_NNIE_OPEN_FILE,
 		"Error(%#x), Open file(%s) failed!", HI_ERR_SVP_NNIE_OPEN_FILE, pstClfCfg->paszPicList[0]);
-
-	while (fgets(aszImg, SVP_SAMPLE_MAX_PATH, pstComfParam->fpSrc[0]) != NULL)
+	
+	//读取第一个list中对应的行的个数（图片路径的个数），也就是一个输入源的图片个数，
+	//如果是多源头输入，那么后面的每一个源的输入的图片个数要与第一个源的图片个数相等
+	while (fgets(aszImg, SVP_SAMPLE_MAX_PATH, pstComfParam->fpSrc[0]) != NULL)		
 	{
 		u32Num++;
 	}
@@ -71,11 +79,11 @@ static HI_S32 SvpSampleLoadImageList(HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH], const 
 		CHECK_EXP_GOTO(pstClfCfg->paszPicList[i] == NULL, FAIL,
 			"u16SrcNum = %d, but the %dth input pic_list file is null", u16SrcNum, i);
 
-		pstComfParam->fpSrc[i] = SvpSampleOpenFile(pstClfCfg->paszPicList[i], "r");
+		pstComfParam->fpSrc[i] = SvpSampleOpenFile(pstClfCfg->paszPicList[i], "r");			//一个段有多个源，每个源的输入图片放在一个list文件里，这里返回该list文件的指针
 		CHECK_EXP_GOTO(pstComfParam->fpSrc[i] == NULL, FAIL, "Error(%#x), Open file(%s) failed!",
 			HI_ERR_SVP_NNIE_OPEN_FILE, pstClfCfg->paszPicList[i]);
 
-		while (fgets(aszImg, SVP_SAMPLE_MAX_PATH, pstComfParam->fpSrc[i]) != NULL) {
+		while (fgets(aszImg, SVP_SAMPLE_MAX_PATH, pstComfParam->fpSrc[i]) != NULL) {		//计算第i个源输入的图片个数
 			u32Num++;
 		}
 		CHECK_EXP_GOTO(u32Num != pstComfParam->u32TotalImgNum, FAIL,
@@ -93,6 +101,11 @@ FAIL:
 }
 
 static HI_S32 SvpSampleOpenLabelList(HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH], const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_S *pstComfParam)
+/*
+依据配置信息pstClfCfg中图像标签路径list，打开对应的文件，检测每个list中的标签个数是否相等输入图片的个数，
+如果相等将文件指针更新到pstComfParam结构体中的输入节点标签文件指针paszLabel中
+如果有多个list则代表对应多个输入源节点
+*/
 {
 	HI_U16 u16DstNum = pstComfParam->stModel.astSeg[0].u16DstNum;
 
@@ -108,7 +121,7 @@ static HI_S32 SvpSampleOpenLabelList(HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH], const 
 			pstComfParam->fpLabel[i] = SvpSampleOpenFile(pstClfCfg->paszLabel[i], "r");
 			CHECK_EXP_GOTO(!(pstComfParam->fpLabel[i]), FAIL, "Error(%#x), Open file(%s) failed!",
 				HI_ERR_SVP_NNIE_OPEN_FILE, pstClfCfg->paszLabel[i]);
-			while (fgets(aszImg, SVP_SAMPLE_MAX_PATH, pstComfParam->fpLabel[i]) != NULL)
+			while (fgets(aszImg, SVP_SAMPLE_MAX_PATH, pstComfParam->fpLabel[i]) != NULL)		//计算第i个源输入标签的个数
 			{
 				u32Num++;
 			}
@@ -129,27 +142,33 @@ FAIL:
 	return HI_FAILURE;
 }
 
+/*
+static HI_S32 SvpSampleAllocBlobMemClf(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_S *pstComfParam, SVP_SAMPLE_LSTMRunTimeCtx *pstLSTMCtx)
+
+分配网络输入blob,输出blob，以及后处理需要的内存空间
+
+*/
 static HI_S32 SvpSampleAllocBlobMemClf(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_S *pstComfParam, SVP_SAMPLE_LSTMRunTimeCtx *pstLSTMCtx)
 {
 	HI_S32 s32Ret = HI_SUCCESS;
 
-	SVP_NNIE_MODEL_S* pstModel = &pstComfParam->stModel;
-	SVP_NNIE_SEG_S* astSeg = pstModel->astSeg;
-	HI_U16 u16SrcNum = astSeg[0].u16SrcNum;
-	HI_U16 u16DstNum = astSeg[0].u16DstNum;
-	HI_U32 u32Num = SVP_SAMPLE_MIN(pstComfParam->u32TotalImgNum, pstClfCfg->u32MaxInputNum);
+	SVP_NNIE_MODEL_S* pstModel = &pstComfParam->stModel;		//nnie 模型信息
+	SVP_NNIE_SEG_S* astSeg = pstModel->astSeg;					//一个模型分多个段
+	HI_U16 u16SrcNum = astSeg[0].u16SrcNum;						//这里只考虑一个段的情况，输入源的个数
+	HI_U16 u16DstNum = astSeg[0].u16DstNum;						//输入节点的个数
+	HI_U32 u32Num = SVP_SAMPLE_MIN(pstComfParam->u32TotalImgNum, pstClfCfg->u32MaxInputNum);		//一个段中某个输入源的图片个数，相当于batch数
 	HI_U32 u32MaxClfNum = 0;
 
 	// malloc src, dst blob buf
-	for (HI_U32 u32SegCnt = 0; u32SegCnt < pstModel->u32NetSegNum; ++u32SegCnt)
+	for (HI_U32 u32SegCnt = 0; u32SegCnt < pstModel->u32NetSegNum; ++u32SegCnt)			//遍历段的个数
 	{
-		SVP_NNIE_NODE_S* pstSrcNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astSrcNode);
-		SVP_NNIE_NODE_S* pstDstNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astDstNode);
+		SVP_NNIE_NODE_S* pstSrcNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astSrcNode);			//该段的源节点数组
+		SVP_NNIE_NODE_S* pstDstNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astDstNode);			//该段的目的节点数组
 
 		// malloc src blob buf;
-		for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16SrcNum; ++i)
+		for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16SrcNum; ++i)			//遍历每个源头节点，计算并分配源节点需要的内存空间
 		{
-			SVP_BLOB_TYPE_E enType = pstSrcNode->enType;
+			SVP_BLOB_TYPE_E enType = pstSrcNode->enType;					//输入blob的节点数据类型，SVP_BLOB_TYPE_U8
 			if (SVP_BLOB_TYPE_SEQ_S32 == enType)
 			{
 				HI_U32 u32Dim = pstSrcNode->unShape.u32Dim;
@@ -157,18 +176,20 @@ static HI_S32 SvpSampleAllocBlobMemClf(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE
 			}
 			else
 			{
+				//如果不是序列类型的输入，则按照 chw的方式分配内存
 				HI_U32 u32SrcC = pstSrcNode->unShape.stWhc.u32Chn;
 				HI_U32 u32SrcW = pstSrcNode->unShape.stWhc.u32Width;
 				HI_U32 u32SrcH = pstSrcNode->unShape.stWhc.u32Height;
-				s32Ret = SvpSampleMallocBlob(&pstComfParam->astSrc[i],
-					enType, u32Num, u32SrcC, u32SrcW, u32SrcH);
+
+				//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+				s32Ret = SvpSampleMallocBlob(&pstComfParam->astSrc[i],enType, u32Num, u32SrcC, u32SrcW, u32SrcH);
 			}
 			CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc src blob failed!", s32Ret);
-			++pstSrcNode;
+			++pstSrcNode;				//源节点指针++,指向该段的下一个源节点
 		}
 
 		// malloc dst blob buf;
-		for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16DstNum; ++i)
+		for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16DstNum; ++i)	////遍历每个输出节点，计算并分配输出节点需要的内存空间 
 		{
 			SVP_BLOB_TYPE_E enType = pstDstNode->enType;
 			if (SVP_BLOB_TYPE_SEQ_S32 == enType)
@@ -178,25 +199,27 @@ static HI_S32 SvpSampleAllocBlobMemClf(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE
 			}
 			else
 			{
+				//输出blob的chw
 				HI_U32 u32DstC = pstDstNode->unShape.stWhc.u32Chn;
 				HI_U32 u32DstW = pstDstNode->unShape.stWhc.u32Width;
 				HI_U32 u32DstH = pstDstNode->unShape.stWhc.u32Height;
-
-				s32Ret = SvpSampleMallocBlob(&pstComfParam->astDst[i],
-					enType, u32Num, u32DstC, u32DstW, u32DstH);
+				//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+				s32Ret = SvpSampleMallocBlob(&pstComfParam->astDst[i],enType, u32Num, u32DstC, u32DstW, u32DstH);
 			}
 			CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc dst blob failed!", s32Ret);
 
 			// normal classification net which has FC layer before the last softmax layer
+			//正常的分类网络输入层有一个fc层，输出为【1,1,1,c】这种shape,类别个数就是w
 			if (pstComfParam->astDst[i].enType == SVP_BLOB_TYPE_VEC_S32) {
 				pstComfParam->au32ClfNum[i] = pstComfParam->astDst[i].unShape.stWhc.u32Width;
-			}
-
+			} 
 			// classification net, such as squeezenet, which has global_pooling layer before the last softmax layer
+			// 对于像squeezenet的网络，输出是有一个global_pooling ,输出shape ,[1,c,1,1],则输出类别个数是通道的个数
 			else {
 				pstComfParam->au32ClfNum[i] = pstComfParam->astDst[i].unShape.stWhc.u32Chn;
 			}
 
+			//用u32MaxClfNum记录不同输出节点的最大类别数，难道不同输出节点的类别个数不同？
 			if (u32MaxClfNum < pstComfParam->astDst[i].unShape.stWhc.u32Width) {
 				u32MaxClfNum = pstComfParam->au32ClfNum[i];
 			}
@@ -209,7 +232,7 @@ static HI_S32 SvpSampleAllocBlobMemClf(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE
 		{
 			// memory of single output max dim
 			// check u32MaxClfNum > 0
-			pstComfParam->pstMaxClfIdScore = (SVP_SAMPLE_CLF_RES_S*)malloc(u32MaxClfNum * sizeof(SVP_SAMPLE_CLF_RES_S));
+			pstComfParam->pstMaxClfIdScore = (SVP_SAMPLE_CLF_RES_S*)malloc(u32MaxClfNum * sizeof(SVP_SAMPLE_CLF_RES_S));			//存储一张图结果的临时空间
 			CHECK_EXP_GOTO(!pstComfParam->pstMaxClfIdScore, FAIL, "Error: Malloc pstMaxclfIdScore failed!");
 			memset(pstComfParam->pstMaxClfIdScore, 0, u32MaxClfNum * sizeof(SVP_SAMPLE_CLF_RES_S));
 
@@ -217,7 +240,7 @@ static HI_S32 SvpSampleAllocBlobMemClf(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE
 			{
 				// memory of TopN with u32Num input
 				// check u32Num and u32TopN > 0
-				pstComfParam->pastClfRes[i] = (SVP_SAMPLE_CLF_RES_S*)malloc(u32Num * pstClfCfg->u32TopN * sizeof(SVP_SAMPLE_CLF_RES_S));
+				pstComfParam->pastClfRes[i] = (SVP_SAMPLE_CLF_RES_S*)malloc(u32Num * pstClfCfg->u32TopN * sizeof(SVP_SAMPLE_CLF_RES_S));		//存储不同输出节点的结果
 				CHECK_EXP_GOTO(!pstComfParam->pastClfRes[i], FAIL, "Error: Malloc pastClfRes[%d] failed!", i);
 				memset(pstComfParam->pastClfRes[i], 0, u32Num * pstClfCfg->u32TopN * sizeof(SVP_SAMPLE_CLF_RES_S));
 
@@ -227,6 +250,11 @@ static HI_S32 SvpSampleAllocBlobMemClf(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE
 			pstComfParam->fpLabel[0] = NULL;
 		}
 	}
+
+
+
+
+
 
 	return s32Ret;
 
@@ -408,7 +436,7 @@ FAIL:
 template<class sT>
 static HI_S32 SvpSampleSetCtrlParamOneSeg(sT *pstComfParam)
 /*
-设置网络的控制参数，包括使用的nnid号，分段标号，以及输入输出源的个数
+更新参数结构体中前向控制参数，包括使用的nnid号，分段标号，以及输入输出源的个数
 */
 {
 	SVP_NNIE_FORWARD_CTRL_S* pstCtrl = &pstComfParam->stCtrl;
@@ -461,7 +489,11 @@ static HI_S32 SvpSampleSetCtrlParamMultiSeg(SVP_NNIE_MULTI_SEG_S *pstComfParam)
 	return HI_SUCCESS;
 }
 
+/*
+适用于分类模型：使用前向配置参数加载wk文件，设置nnie模型参数，分配wk模型空间、输入输出blob空间以及后处理的空间
+*/
 static HI_S32 SvpSampleOneSegCommonInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_S *pstComfParam, SVP_SAMPLE_LSTMRunTimeCtx *pstLSTMCtx)
+
 {
 	HI_S32 s32Ret = HI_SUCCESS;
 	HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH] = { '\0' };
@@ -469,21 +501,21 @@ static HI_S32 SvpSampleOneSegCommonInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_
 	HI_U16 u16SrcNum = 0;
 	HI_U16 u16DstNum = 0;
 
-	SVP_MEM_INFO_S *pstModelBuf = &pstComfParam->stModelBuf;
-	SVP_MEM_INFO_S *pstTmpBuf = &pstComfParam->stTmpBuf;
-	SVP_MEM_INFO_S *pstTskBuf = &pstComfParam->stTskBuf;
+	SVP_MEM_INFO_S *pstModelBuf = &pstComfParam->stModelBuf;			//nnie模型需要的modelbuf
+	SVP_MEM_INFO_S *pstTmpBuf = &pstComfParam->stTmpBuf;				//tmpbuf
+	SVP_MEM_INFO_S *pstTskBuf = &pstComfParam->stTskBuf;				//tskbuf
 
 	/******************** step1, load wk file, *******************************/
-	s32Ret = SvpSampleReadWK(pstClfCfg->pszModelName, pstModelBuf);
+	s32Ret = SvpSampleReadWK(pstClfCfg->pszModelName, pstModelBuf);					//按照指定的wk模型的路径加载模型到内存
 	CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "Error(%#x): read model file(%s) failed", s32Ret, pstClfCfg->pszModelName);
 
-	s32Ret = HI_MPI_SVP_NNIE_LoadModel(pstModelBuf, &(pstComfParam->stModel));
+	s32Ret = HI_MPI_SVP_NNIE_LoadModel(pstModelBuf, &(pstComfParam->stModel));		//将内存中的参数更新到nnie模型结构体中去
 	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail1, "Error(%#x): LoadModel from %s failed!", s32Ret, pstClfCfg->pszModelName);
 
-	u16SrcNum = pstComfParam->stModel.astSeg[0].u16SrcNum;
-	u16DstNum = pstComfParam->stModel.astSeg[0].u16DstNum;
+	u16SrcNum = pstComfParam->stModel.astSeg[0].u16SrcNum;		//输入节点的个数（通过wk模型可以得到）
+	u16DstNum = pstComfParam->stModel.astSeg[0].u16DstNum;		//输出节点的个数（通过wk模型可以得到）
 
-	pstComfParam->u32TmpBufSize = pstComfParam->stModel.u32TmpBufSize;
+	pstComfParam->u32TmpBufSize = pstComfParam->stModel.u32TmpBufSize;		//tmpbuf的大小（通过wk模型可以得到）
 
 	/******************** step2, malloc tmp_buf *******************************/
 	s32Ret = SvpSampleMallocMem(NULL, NULL, pstComfParam->u32TmpBufSize, pstTmpBuf);
@@ -492,27 +524,35 @@ static HI_S32 SvpSampleOneSegCommonInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_
 	/******************** step3, get tsk_buf size *******************************/
 	CHECK_EXP_GOTO(pstComfParam->stModel.u32NetSegNum != 1, Fail3, "netSegNum should be 1");
 	s32Ret = HI_MPI_SVP_NNIE_GetTskBufSize(pstClfCfg->u32MaxInputNum, pstClfCfg->u32MaxBboxNum,
-		&pstComfParam->stModel, &pstComfParam->u32TaskBufSize, pstComfParam->stModel.u32NetSegNum);
+		&pstComfParam->stModel, &pstComfParam->u32TaskBufSize, pstComfParam->stModel.u32NetSegNum);		// 更新taskbuf的大小pstComfParam->u32TaskBufSize
 	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail3, "Error(%#x): GetTaskSize failed!", s32Ret);
 
 	/******************** step4, malloc tsk_buf size *******************************/
-	s32Ret = SvpSampleMallocMem(NULL, NULL, pstComfParam->u32TaskBufSize, pstTskBuf);
+	s32Ret = SvpSampleMallocMem(NULL, NULL, pstComfParam->u32TaskBufSize, pstTskBuf);				//为taskbuf分配内存
 	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail3, "Error(%#x): Malloc task buf failed!", s32Ret);
 
 	/*********** step5, check and open all input images list file ******************/
-	// all input pic_list file should have the same num of input image
+	// all input pic_list file should have the same num of input image（如果有多个imagelist的话，每个imagelist中的图像个数必须相同）
+
+	//依据配置信息pstClfCfg中图像路径list，打开对应的文件，检测每个list中的图片个数是否相等，
+	//如果相等将文件指针更新到pstComfParam结构体中 的输入节点文件指针fpSrc中
+	//如果有多个list则代表对应多个输入源节点
 	s32Ret = SvpSampleLoadImageList(aszImg, pstClfCfg, pstComfParam);
 	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail4, "Error(%#x): SvpSampleLoadImageList failed!", s32Ret);
 
-	/*********** step6, if need label then open all label file ******************/
+
+	//同理打开标签文件，获得标签文件的文件指针
+	/*********** step6, if need label then open all label file ******************/	
 	s32Ret = SvpSampleOpenLabelList(aszImg, pstClfCfg, pstComfParam);
 	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail5, "Error(%#x): SvpSampleOpenLabelList failed!", s32Ret);
 
 	/*********** step7, malloc memory of src blob, dst blob and post-process mem ***********/
+	//分配网络输入blob,输出blob，以及后处理需要的内存空间
 	s32Ret = SvpSampleAllocBlobMemClf(pstClfCfg, pstComfParam, pstLSTMCtx);
 	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail6, "Error(%#x): SvpSampleAllocBlobMemClf failed!", s32Ret);
 
 	/************************** step8, set ctrl param **************************/
+	//更新参数结构体中前向控制参数，包括使用的nnid号，分段标号，以及输入输出源的个数
 	s32Ret = SvpSampleSetCtrlParamOneSeg(pstComfParam);
 	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail7, "Error(%#x): SvpSampleSetCtrlParamOneSeg failed!", s32Ret);
 
@@ -553,10 +593,11 @@ Fail1:
 	if (HI_SUCCESS == s32Ret) {
 		s32Ret = HI_FAILURE;
 	}
-
+								 
 	return s32Ret;
 }
 
+//适用于分类模型：使用前向配置参数加载wk文件，设置nnie模型参数，分配wk模型空间、输入输出blob空间以及后处理的空间
 HI_S32 SvpSampleOneSegCnnInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_S *pstComParam)
 {
 	return SvpSampleOneSegCommonInit(pstClfCfg, pstComParam, NULL);

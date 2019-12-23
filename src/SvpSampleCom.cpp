@@ -23,6 +23,7 @@ HI_U32 SvpSampleAlign(HI_U32 u32Size, HI_U32 u32AlignNum)
 
 /*
 * Malloc mem,depend on different environment
+按照u32Size大小分配内存地址，并返回相应的物理地址和虚拟地址
 */
 HI_S32 SvpSampleMalloc(HI_CHAR *pchMmb, HI_CHAR *pchZone, HI_U64 *pu64PhyAddr, HI_VOID **ppvVirAddr, HI_U32 u32Size)
 {
@@ -230,8 +231,21 @@ HI_S32 SvpSampleMkdir(const HI_CHAR* dir)
     return ret;
 }
 
+/*
+SvpSampleMallocBlob 函数：
+
+SVP_BLOB_S *pstBlob,
+SVP_BLOB_TYPE_E enType,
+HI_U32 u32Num,				//batch数目
+HI_U32 u32Chn,
+HI_U32 u32Width,
+HI_U32 u32Height,
+HI_U32 u32UsrAlign			//对齐方式
+根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+*/
 HI_S32 SvpSampleMallocBlob(SVP_BLOB_S *pstBlob, SVP_BLOB_TYPE_E enType, HI_U32 u32Num, HI_U32 u32Chn,
     HI_U32 u32Width, HI_U32 u32Height, HI_U32 u32UsrAlign)
+
 {
     HI_S32 s32Ret      = HI_SUCCESS;
     HI_U32 u32ElemByte = sizeof(HI_U8);
@@ -266,9 +280,9 @@ HI_S32 SvpSampleMallocBlob(SVP_BLOB_S *pstBlob, SVP_BLOB_TYPE_E enType, HI_U32 u
         pstBlob->unShape.stWhc.u32Height = u32Height;
         pstBlob->unShape.stWhc.u32Width = u32Width;
         u32ElemByte = sizeof(HI_U8);
-        u32Stride = SvpSampleAlign(u32Width * u32ElemByte, u32UsrAlign);
+        u32Stride = SvpSampleAlign(u32Width * u32ElemByte, u32UsrAlign);//按照对齐方式计算stride
         pstBlob->u32Stride = u32Stride;
-        u32Size = u32Num * u32Chn * u32Stride * u32Height;
+        u32Size = u32Num * u32Chn * u32Stride * u32Height;				//注意所使用的内存大小是根据stride来计算的，而不是width
         break;
     }
     case SVP_BLOB_TYPE_YVU420SP:
@@ -277,7 +291,7 @@ HI_S32 SvpSampleMallocBlob(SVP_BLOB_S *pstBlob, SVP_BLOB_TYPE_E enType, HI_U32 u
         pstBlob->unShape.stWhc.u32Height = u32Height;
         pstBlob->unShape.stWhc.u32Width = u32Width;
         u32ElemByte = sizeof(HI_U8);
-        u32Stride = SvpSampleAlign(u32Width * u32ElemByte, u32UsrAlign);
+        u32Stride = SvpSampleAlign(u32Width * u32ElemByte, u32UsrAlign);			
         pstBlob->u32Stride = u32Stride;
         u32Size = u32Num * u32Chn * u32Stride * u32Height * 3 / 2;
         break;
@@ -398,7 +412,13 @@ void SvpSampleFreeRPNBlob(SVP_BLOB_S *pstBlob)
     SvpSampleFree((pstBlob->u64VirAddr), (HI_VOID*)(pstBlob->u64VirAddr));
     memset(pstBlob, 0, sizeof(*pstBlob));
 }
+/*
+FILE *afp[],								//一个段的多个输入源的文件指针数组，一个指针对应一个文件，每个文件的一行包含图像路径
+SVP_SRC_BLOB_S astSrcBlobs[],				//一个段的多个输入源节点的blob的地址
+HI_U32 u32SrcNum, 
+vector<SVP_SAMPLE_FILE_NAME_PAIR>& imgNameRecoder
 
+*/
 HI_S32 SvpSampleReadAllSrcImg(FILE *afp[], SVP_SRC_BLOB_S astSrcBlobs[],
     HI_U32 u32SrcNum, vector<SVP_SAMPLE_FILE_NAME_PAIR>& imgNameRecoder)
 {
@@ -410,9 +430,9 @@ HI_S32 SvpSampleReadAllSrcImg(FILE *afp[], SVP_SRC_BLOB_S astSrcBlobs[],
     {
         vector<SVP_SAMPLE_FILE_NAME_PAIR> imgNameRecoder_temp;
 
-        if (astSrcBlobs[j].enType >= 0 && astSrcBlobs[j].enType < SVP_BLOB_TYPE_BUTT)
+        if (astSrcBlobs[j].enType >= 0 && astSrcBlobs[j].enType < SVP_BLOB_TYPE_BUTT)		//检测类型的合法性
         {
-            FILE *fp = afp[j];
+            FILE *fp = afp[j];																//第j个输入源节点对应的文件指针
             s32Ret = SvpSampleImgReadFromImglist(fp, &astSrcBlobs[j], 0, imgNameRecoder_temp);
             CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "SvpSampleImgReadFromImglist failed");
         }
@@ -497,6 +517,14 @@ static HI_S32 s_SvpSampleImgPathRead(FILE *fp, HI_CHAR* pszImg)
     return ret;
 }
 
+
+/* 
+FILE *fp,								//一个段的其中的一个输入源的文件指针，该文件的一行包含图像路径
+SVP_BLOB_S *pstBlob,
+HI_U32 u32StartLine,					//读取文件的第几行
+vector<SVP_SAMPLE_FILE_NAME_PAIR>& imgNameRecoder
+
+*/ 
 HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
     HI_U32 u32StartLine, vector<SVP_SAMPLE_FILE_NAME_PAIR>& imgNameRecoder)
 {
@@ -512,6 +540,7 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
     HI_U8 *pu8Ptr = (HI_U8*)pstBlob->u64VirAddr;
     fseek(fp, 0, SEEK_SET);
 
+	//跳过前面的行
     for (i = 0; i < u32StartLine; i++)
     {
         HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH] = { '\0' };
@@ -528,7 +557,7 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
         for (i = u32StartLine, j = 0; j < pstBlob->u32Num; i++, j++)
         {
             HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH] = { '\0' };
-            s32Ret = s_SvpSampleImgPathRead(fp, aszImg);
+            s32Ret = s_SvpSampleImgPathRead(fp, aszImg);				
             CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "s_SvpSampleImgPathRead failed in line(%d) num(%d)!", i, j);
 
           
@@ -570,22 +599,22 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
         for (i = u32StartLine, j = 0; j < pstBlob->u32Num; i++, j++)
         {
             HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH] = { '\0' };
-            s32Ret = s_SvpSampleImgPathRead(fp, aszImg);
+            s32Ret = s_SvpSampleImgPathRead(fp, aszImg);						//读取list的第i行，也就是第i个图像的路径
             CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "s_SvpSampleImgPathRead failed in line(%d) num(%d)!", i, j);
 
-            SVP_SAMPLE_FILE_NAME_PAIR filename = s_SvpSampleGetFileNameFromPath(string(aszImg));
+            SVP_SAMPLE_FILE_NAME_PAIR img_info = s_SvpSampleGetFileNameFromPath(string(aszImg));		// 从文件路径中，分离出文件后缀名字
           
 
 #ifdef USE_OPENCV
             HI_BOOL bIsRawImg = HI_TRUE;
 
-            std::string strSuffix = filename.suffix;		//将后缀转换为小写
+            std::string strSuffix = img_info.suffix;		//将后缀转换为小写
             transform(strSuffix.begin(), strSuffix.end(), strSuffix.begin(), ::tolower);
 
             if (strSuffix == "jpg" || strSuffix == "jpeg"		//如果是这几种类型，可以使用opencv来读取
                 || strSuffix == "png" || strSuffix == "bmp")
             {
-                SVPUtils_ReadImage(aszImg, pstBlob, &pu8Ptr,filename.width,filename.height);
+                SVPUtils_ReadImage(aszImg, pstBlob, &pu8Ptr, img_info.width, img_info.height);		//读取图像信息，并更新高度宽度变量
                 bIsRawImg = HI_FALSE;
             }
 
@@ -594,8 +623,8 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
             {
                 imgFp = SvpSampleOpenFile(aszImg, "rb");
                 CHECK_EXP_RET(!imgFp, HI_FAILURE, "open file(%s) failed!", aszImg);
-				filename.width = pstBlob->unShape.stWhc.u32Width;
-				filename.height = pstBlob->unShape.stWhc.u32Height;
+				img_info.width = pstBlob->unShape.stWhc.u32Width;
+				img_info.height = pstBlob->unShape.stWhc.u32Height;
                 for (c = 0; c < pstBlob->unShape.stWhc.u32Chn; c++)
                 {
                     for (h = 0; h < pstBlob->unShape.stWhc.u32Height; h++)
@@ -613,7 +642,7 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
                 SvpSampleCloseFile(imgFp);
             }
 
-			imgNameRecoder.push_back(filename);
+			imgNameRecoder.push_back(img_info);
         }
     Fail2:
         if (bFailFlag) {

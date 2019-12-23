@@ -9,11 +9,11 @@ int main(int argc, char* argv[])
 
 //    /*Classificacion*/
 //    SvpSampleCnnClfLenet();
-//    SvpSampleCnnClfAlexnet();
+//SvpSampleCnnClfAlexnet();
 //    SvpSampleCnnClfVgg16();
 //    SvpSampleCnnClfGooglenet();
 //    SvpSampleCnnClfResnet50();
-//    SvpSampleCnnClfSqueezenet();
+ // SvpSampleCnnClfSqueezenet();
 //    SvpSampleCnnClfMobilenet();
 //
 //    /*Detection MultiSeg*/
@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 //    /*Detection OneSeg*/
 //    SvpSampleCnnDetYoloV1();
 //    SvpSampleCnnDetYoloV2();
-    SvpSampleCnnDetYoloV3();
+ //   SvpSampleCnnDetYoloV3();
 //    SvpSampleCnnDetSSD();
 //
 //    /*Segmentation*/
