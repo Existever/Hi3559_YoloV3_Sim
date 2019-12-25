@@ -789,6 +789,78 @@ HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob,
     return HI_SUCCESS;
 }
 
+
+/*
+从指定路径读入图像数据到指定blob，并缩放到与blob适配的尺寸，图像是3通道的
+*/
+HI_S32 SvpSampleImgReadToBlob(HI_CHAR *pImgPath, SVP_BLOB_S *pstBlob, IMG_INFO_S &stImgInfo)
+{
+	CHECK_EXP_RET(!pImgPath, HI_ERR_SVP_NNIE_NULL_PTR, "pImgPath is null");
+	CHECK_EXP_RET(!pstBlob, HI_ERR_SVP_NNIE_NULL_PTR, "pstBlob is null");
+
+	HI_S32 s32Ret = HI_SUCCESS;
+	HI_U32 c, h;
+	FILE *imgFp = NULL;
+	HI_U32 u32ElemSize = sizeof(HI_U8);
+	HI_U8 *pu8Ptr = (HI_U8*)pstBlob->u64VirAddr;  
+	HI_BOOL bFailFlag = HI_FALSE;
+	 
+	stImgInfo = s_SvpSampleGetFileNameFromPath(string(pImgPath));		// 从文件路径中，分离出文件后缀名字
+
+
+#ifdef USE_OPENCV
+			HI_BOOL bIsRawImg = HI_TRUE;
+
+			std::string strSuffix = stImgInfo.suffix;		//将后缀转换为小写
+			transform(strSuffix.begin(), strSuffix.end(), strSuffix.begin(), ::tolower);
+
+			if (strSuffix == "jpg" || strSuffix == "jpeg"		//如果是这几种类型，可以使用opencv来读取
+				|| strSuffix == "png" || strSuffix == "bmp")
+			{
+				SVPUtils_ReadImage(pImgPath, pstBlob, &pu8Ptr, stImgInfo.width, stImgInfo.height);		//读取图像信息，并更新高度宽度变量
+				bIsRawImg = HI_FALSE;
+			}
+
+
+			if (bIsRawImg)			//如果不是jpg,jpeg,png,bmp类型，则说明是原始的bgr类型且大小为416*416，则直接读取raw图
+	
+#endif			
+			{
+				imgFp = SvpSampleOpenFile(pImgPath, "rb");
+				CHECK_EXP_RET(!imgFp, HI_FAILURE, "open file(%s) failed!", pImgPath);
+				stImgInfo.width = pstBlob->unShape.stWhc.u32Width;
+				stImgInfo.height = pstBlob->unShape.stWhc.u32Height;
+				for (c = 0; c < pstBlob->unShape.stWhc.u32Chn; c++)
+				{
+					for (h = 0; h < pstBlob->unShape.stWhc.u32Height; h++)
+					{
+						s32Ret = (HI_S32)fread(pu8Ptr, pstBlob->unShape.stWhc.u32Width * u32ElemSize, 1, imgFp);
+						if (1 != s32Ret)
+						{
+							bFailFlag = HI_TRUE;
+							printf("fread failed, (n,c,h)=(%d,%d)!",  c, h);
+							goto Fail2;
+						}
+						pu8Ptr += pstBlob->u32Stride;
+					}
+				}
+				SvpSampleCloseFile(imgFp);
+			} 
+ 
+ 
+	Fail2:
+	if (bFailFlag) {
+		SvpSampleCloseFile(imgFp);
+		return HI_FAILURE;
+	} 
+
+	return HI_SUCCESS;
+}
+
+
+
+
+
 HI_S32 SvpSampleGetDstIndexFromLayerName(const SVP_NNIE_MODEL_S *pstModel,
     const HI_CHAR* pszLayerName, HI_U32 u32SrcSegIndex, HI_U32* pu32DstIndex)
 {

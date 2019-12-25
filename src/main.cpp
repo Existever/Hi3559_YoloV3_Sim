@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 //    /*Detection OneSeg*/
 //    SvpSampleCnnDetYoloV1();
 //    SvpSampleCnnDetYoloV2();
- //   SvpSampleCnnDetYoloV3();
+//   SvpSampleCnnDetYoloV3();
 //    SvpSampleCnnDetSSD();
 //
 //    /*Segmentation*/
@@ -36,6 +36,11 @@ int main(int argc, char* argv[])
 //    /*RNN*/
 //    SvpSampleRecurrentLSTMFC();
 //    SvpSampleRecurrentLSTMRelu();
+
+	//Track
+	 SvpSampleCnnTrackSiamese();
+
+
 
     //printf("press any key to exit ... \n");
     //getchar();

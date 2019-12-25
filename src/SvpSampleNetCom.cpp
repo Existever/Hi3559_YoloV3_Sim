@@ -277,6 +277,181 @@ FAIL:
 	return s32Ret;
 }
 
+
+/*
+static HI_S32 SvpSampleAllocBlobMemTrk(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_Trk_S *pstComfParam)
+分配网络输入blob,输出blob，以及后处理需要的内存空间
+
+*/
+static HI_S32 SvpSampleAllocBlobMemTrk(const SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_Trk_S *pstComfParam)
+{
+	HI_S32 s32Ret = HI_SUCCESS;
+
+	SVP_NNIE_MODEL_S* pstModel = &pstComfParam->stModel;		//nnie 模型信息
+	SVP_NNIE_SEG_S* astSeg = pstModel->astSeg;					//一个模型分多个段
+	HI_U16 u16SrcNum = astSeg[0].u16SrcNum;						//这里只考虑一个段的情况，输入源的个数
+	HI_U16 u16DstNum = astSeg[0].u16DstNum;						//输入节点的个数
+	HI_U32 u32Num = SVP_SAMPLE_MIN(1, pstClfCfg->u32MaxInputNum);		//一个段中某个输入源的图片个数，相当于batch数	
+	pstComfParam->TopK = SVP_SAMPLE_MIN(pstComfParam->TopK, 1);		//topk至少为1
+
+	// malloc src, dst blob buf
+	for (HI_U32 u32SegCnt = 0; u32SegCnt < pstModel->u32NetSegNum; ++u32SegCnt)			//遍历段的个数
+	{
+		SVP_NNIE_NODE_S* pstSrcNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astSrcNode);			//该段的源节点数组
+		SVP_NNIE_NODE_S* pstDstNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astDstNode);			//该段的目的节点数组
+
+																								// malloc src blob buf;
+		for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16SrcNum; ++i)			//遍历每个源头节点，计算并分配源节点需要的内存空间
+		{
+			SVP_BLOB_TYPE_E enType = pstSrcNode->enType;					//输入blob的节点数据类型，SVP_BLOB_TYPE_U8 
+			if (SVP_BLOB_TYPE_U8 == enType)
+			{
+				HI_U32 u32SrcC = pstSrcNode->unShape.stWhc.u32Chn;
+				HI_U32 u32SrcW = pstSrcNode->unShape.stWhc.u32Width;
+				HI_U32 u32SrcH = pstSrcNode->unShape.stWhc.u32Height;
+				//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+				s32Ret = SvpSampleMallocBlob(&pstComfParam->astSrc[i], enType, u32Num, u32SrcC, u32SrcW, u32SrcH);
+			}
+			else
+			{
+				s32Ret = HI_FAILURE;
+			}
+			CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc src blob failed!", s32Ret);
+			++pstSrcNode;				//源节点指针++,指向该段的下一个源节点
+		}
+
+		// malloc dst blob buf;
+		for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16DstNum; ++i)	////遍历每个输出节点，计算并分配输出节点需要的内存空间 
+		{
+			SVP_BLOB_TYPE_E enType = pstDstNode->enType;
+			if (SVP_BLOB_TYPE_S32 == enType)
+			{
+				//输出blob的chw
+				HI_U32 u32DstC = pstDstNode->unShape.stWhc.u32Chn;
+				HI_U32 u32DstW = pstDstNode->unShape.stWhc.u32Width;
+				HI_U32 u32DstH = pstDstNode->unShape.stWhc.u32Height;
+				//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+				s32Ret = SvpSampleMallocBlob(&pstComfParam->astDst[i], enType, u32Num, u32DstC, u32DstW, u32DstH);  
+			 
+			}
+			else
+			{
+				s32Ret = HI_FAILURE;
+			}
+
+			CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc dst blob failed!", s32Ret);
+
+
+			++pstDstNode;
+		}
+
+		//如果只生成模板blob 
+		if (pstComfParam->MakeTemplateBlob == HI_TRUE) {			
+			for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16DstNum; ++i)	//遍历每个输出节点，计算并分配存储模板blob需要的内存空间 
+			{		 		
+				//将输出blob的信息备份到模板空间，并为模板单独开辟空间
+				memcpy(&pstComfParam->TemplateBlob[i], &pstComfParam->astDst[i], sizeof(SVP_DST_BLOB_S));				 
+				HI_U32 u32DstC = pstComfParam->TemplateBlob[i].unShape.stWhc.u32Chn;
+				HI_U32 u32DstW = pstComfParam->TemplateBlob[i].unShape.stWhc.u32Width;
+				HI_U32 u32DstH = pstComfParam->TemplateBlob[i].unShape.stWhc.u32Height;
+				SVP_BLOB_TYPE_E enType = pstComfParam->TemplateBlob[i].enType;
+				//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+				s32Ret = SvpSampleMallocBlob(&pstComfParam->TemplateBlob[i], enType, u32Num, u32DstC, u32DstW, u32DstH);
+				CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc TemplateBlob  failed!", s32Ret);
+			}  
+			 
+
+		}
+		else  //如果是搜素区域分支  
+		{ 
+			SVP_NNIE_NODE_S* pstSrcNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astSrcNode);			//该段的源节点数组
+			SVP_NNIE_NODE_S* pstDstNode = (SVP_NNIE_NODE_S*)(astSeg[u32SegCnt].astDstNode);			//该段的目的节点数组
+
+			for (HI_U16 i = 0; i < astSeg[u32SegCnt].u16DstNum; ++i)	////遍历每个输出节点，计算并分配输出节点需要的内存空间 
+			{
+				pstComfParam->SVP_SAMPLE_Trk_RES[i] = (SVP_SAMPLE_Trk_RES_S*)malloc(pstComfParam->TopK * sizeof(SVP_SAMPLE_Trk_RES_S));
+
+				CHECK_EXP_GOTO(!pstComfParam->SVP_SAMPLE_Trk_RES[i], FAIL, "Error: Malloc SVP_SAMPLE_Trk_RES_S[%d] failed!", i);
+				memset(pstComfParam->SVP_SAMPLE_Trk_RES[i], 0, pstComfParam->TopK * sizeof(SVP_SAMPLE_Trk_RES_S));		
+				 
+
+				
+				//使用输入输出的blob信息初始化相关系数结构
+				memcpy(&pstComfParam->SVP_SAMPLE_Trk_COF[i].bCor, &pstComfParam->astDst[i], sizeof(SVP_DST_BLOB_S));
+				memcpy(&pstComfParam->SVP_SAMPLE_Trk_COF[i].cor, &pstComfParam->astSrc[i],  sizeof(SVP_DST_BLOB_S));		
+				memcpy(&pstComfParam->SVP_SAMPLE_Trk_COF[i].hann, &pstComfParam->astSrc[i], sizeof(SVP_DST_BLOB_S));
+				//依次为他们分配内存
+				{
+					HI_U32 u32DstC = 1;			//相关系数只要一个通道
+					HI_U32 u32DstW = pstComfParam->SVP_SAMPLE_Trk_COF[i].bCor.unShape.stWhc.u32Width;
+					HI_U32 u32DstH = pstComfParam->SVP_SAMPLE_Trk_COF[i].bCor.unShape.stWhc.u32Height;
+					SVP_BLOB_TYPE_E enType = SVP_BLOB_TYPE_S32;			//要存储浮点数
+																		//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+					s32Ret = SvpSampleMallocBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].bCor, enType, u32Num, u32DstC, u32DstW, u32DstH);
+					CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc pstComfParam->SVP_SAMPLE_Trk_COF[i].bCor  failed!", s32Ret);
+
+				}
+
+				{
+					HI_U32 u32DstC = 1;
+					HI_U32 u32DstW = pstComfParam->SVP_SAMPLE_Trk_COF[i].cor.unShape.stWhc.u32Width;
+					HI_U32 u32DstH = pstComfParam->SVP_SAMPLE_Trk_COF[i].cor.unShape.stWhc.u32Height;
+					SVP_BLOB_TYPE_E enType = SVP_BLOB_TYPE_S32;			//要存储浮点数
+																		//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+					s32Ret = SvpSampleMallocBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].cor, enType, u32Num, u32DstC, u32DstW, u32DstH);
+					CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc pstComfParam->SVP_SAMPLE_Trk_COF[i].cor  failed!", s32Ret);
+
+				}
+
+				{
+					HI_U32 u32DstC =1;
+					HI_U32 u32DstW = pstComfParam->SVP_SAMPLE_Trk_COF[i].hann.unShape.stWhc.u32Width;
+					HI_U32 u32DstH = pstComfParam->SVP_SAMPLE_Trk_COF[i].hann.unShape.stWhc.u32Height;
+					SVP_BLOB_TYPE_E enType = SVP_BLOB_TYPE_S32;			//要存储浮点数
+																		//根据不同的blob类型enType(例如u8),按照对齐方式u32UsrAlign（例如16字节对齐）为pstBlob分配内存
+					s32Ret = SvpSampleMallocBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].hann, enType, u32Num, u32DstC, u32DstW, u32DstH);
+					CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, FAIL, "Error(%#x): Malloc pstComfParam->SVP_SAMPLE_Trk_COF[i].hann  failed!", s32Ret);
+
+				}
+
+
+			} 
+
+		}
+		
+	} 
+
+
+	return s32Ret;
+
+FAIL:
+	
+	for (HI_U16 i = 0; i < u16DstNum; ++i) {
+		 
+		SvpSampleMemFree(pstComfParam->SVP_SAMPLE_Trk_RES[i]); 
+		SvpSampleFreeBlob(&pstComfParam->astDst[i]);
+		SvpSampleFreeBlob(&pstComfParam->TemplateBlob[i]);
+		SvpSampleFreeBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].cor);
+		SvpSampleFreeBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].bCor);
+		SvpSampleFreeBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].hann);
+		 
+	}
+	for (HI_U16 i = 0; i < u16SrcNum; ++i) {
+		SvpSampleFreeBlob(&pstComfParam->astSrc[i]);
+	}
+
+	// some fail goto not mark s32Ret as HI_FAILURE, set it to HI_FAILURE
+	// keep s32Ret value if it is not HI_SUCCESS
+	if (HI_SUCCESS == s32Ret) {
+		s32Ret = HI_FAILURE;
+	}
+
+	return s32Ret;
+}
+
+
+
+
 static HI_S32 SvpSampleAllocBlobMemDet(
 	const HI_U32 *pu32SrcAlign,
 	const HI_U32 *pu32DstAlign,
@@ -647,6 +822,186 @@ HI_S32 SvpSampleLSTMDeinit(SVP_NNIE_ONE_SEG_S *pstComParam)
 	SvpSampleOneSegCommDeinit(pstComParam);
 	return HI_SUCCESS;
 }
+
+
+/*
+适用于分类模型：使用前向配置参数加载wk文件，设置nnie模型参数，分配wk模型空间、输入输出blob空间以及后处理的空间
+*/
+ HI_S32 SvpSampleOneSegTrackInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_Trk_S *pstComfParam)
+
+{
+	HI_S32 s32Ret = HI_SUCCESS;
+	HI_CHAR aszImg[SVP_SAMPLE_MAX_PATH] = { '\0' };
+
+	HI_U16 u16SrcNum = 0;
+	HI_U16 u16DstNum = 0;
+
+	SVP_MEM_INFO_S *pstModelBuf = &pstComfParam->stModelBuf;			//nnie模型需要的modelbuf
+	SVP_MEM_INFO_S *pstTmpBuf = &pstComfParam->stTmpBuf;				//tmpbuf
+	SVP_MEM_INFO_S *pstTskBuf = &pstComfParam->stTskBuf;				//tskbuf
+
+																		/******************** step1, load wk file, *******************************/
+	s32Ret = SvpSampleReadWK(pstClfCfg->pszModelName, pstModelBuf);					//按照指定的wk模型的路径加载模型到内存
+	CHECK_EXP_RET(HI_SUCCESS != s32Ret, s32Ret, "Error(%#x): read model file(%s) failed", s32Ret, pstClfCfg->pszModelName);
+
+	s32Ret = HI_MPI_SVP_NNIE_LoadModel(pstModelBuf, &(pstComfParam->stModel));		//将内存中的参数更新到nnie模型结构体中去
+	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail1, "Error(%#x): LoadModel from %s failed!", s32Ret, pstClfCfg->pszModelName);
+
+	u16SrcNum = pstComfParam->stModel.astSeg[0].u16SrcNum;		//输入节点的个数（通过wk模型可以得到）
+	u16DstNum = pstComfParam->stModel.astSeg[0].u16DstNum;		//输出节点的个数（通过wk模型可以得到）
+
+	pstComfParam->u32TmpBufSize = pstComfParam->stModel.u32TmpBufSize;		//tmpbuf的大小（通过wk模型可以得到）
+
+																			/******************** step2, malloc tmp_buf *******************************/
+	s32Ret = SvpSampleMallocMem(NULL, NULL, pstComfParam->u32TmpBufSize, pstTmpBuf);
+	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail2, "Error(%#x): Malloc tmp buf failed!", s32Ret);
+
+	/******************** step3, get tsk_buf size *******************************/
+	CHECK_EXP_GOTO(pstComfParam->stModel.u32NetSegNum != 1, Fail3, "netSegNum should be 1");
+	s32Ret = HI_MPI_SVP_NNIE_GetTskBufSize(pstClfCfg->u32MaxInputNum, pstClfCfg->u32MaxBboxNum,
+		&pstComfParam->stModel, &pstComfParam->u32TaskBufSize, pstComfParam->stModel.u32NetSegNum);		// 更新taskbuf的大小pstComfParam->u32TaskBufSize
+	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail3, "Error(%#x): GetTaskSize failed!", s32Ret);
+
+	/******************** step4, malloc tsk_buf size *******************************/
+	s32Ret = SvpSampleMallocMem(NULL, NULL, pstComfParam->u32TaskBufSize, pstTskBuf);				//为taskbuf分配内存
+	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail3, "Error(%#x): Malloc task buf failed!", s32Ret);
+
+
+
+
+ 
+	///*********** step7, malloc memory of src blob, dst blob and post-process mem ***********/
+	//分配网络输入blob,输出blob，以及后处理需要的内存空间
+	s32Ret = SvpSampleAllocBlobMemTrk(pstClfCfg, pstComfParam);
+	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail6, "Error(%#x): SvpSampleAllocBlobMemClf failed!", s32Ret);
+
+	///************************** step8, set ctrl param **************************/
+	////更新参数结构体中前向控制参数，包括使用的nnid号，分段标号，以及输入输出源的个数
+	s32Ret = SvpSampleSetCtrlParamOneSeg(pstComfParam);
+	CHECK_EXP_GOTO(HI_SUCCESS != s32Ret, Fail7, "Error(%#x): SvpSampleSetCtrlParamOneSeg failed!", s32Ret); 
+
+
+
+	return s32Ret;
+
+Fail7:
+	
+	for (HI_U16 i = 0; i < u16DstNum; ++i) {
+		SvpSampleFreeBlob(&pstComfParam->astDst[i]);
+		SvpSampleMemFree(pstComfParam->SVP_SAMPLE_Trk_RES[i]);
+		SvpSampleFreeBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].cor);
+		SvpSampleFreeBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].bCor);
+		SvpSampleFreeBlob(&pstComfParam->SVP_SAMPLE_Trk_COF[i].hann);
+	}
+	for (HI_U16 i = 0; i < u16SrcNum; ++i) {
+		SvpSampleFreeBlob(&pstComfParam->astSrc[i]);
+	}
+
+Fail6:
+	for (HI_U16 i = 0; i < u16SrcNum; ++i) {
+		SvpSampleCloseFile(pstComfParam->fpSrc[i]);
+	}
+
+Fail5:
+	//for (HI_U16 i = 0; i < u16DstNum; ++i) {
+	//	SvpSampleCloseFile(pstComfParam->fpLabel[i]);
+	//}
+
+Fail4:
+	SvpSampleMemFree(&pstComfParam->stTskBuf);
+Fail3:
+	SvpSampleMemFree(&pstComfParam->stTmpBuf);
+Fail2:
+	HI_MPI_SVP_NNIE_UnloadModel(&(pstComfParam->stModel));
+Fail1:
+	SvpSampleMemFree(&pstComfParam->stModelBuf);
+
+	// some fail goto not mark s32Ret as HI_FAILURE, set it to HI_FAILURE
+	// keep s32Ret value if it is not HI_SUCCESS
+	if (HI_SUCCESS == s32Ret) {
+		s32Ret = HI_FAILURE;
+	}
+
+	return s32Ret;
+}
+
+
+ 
+
+
+ void SvpSampleOneSegTrkDeinit(SVP_NNIE_ONE_SEG_Trk_S *pstComParam)
+{
+	if (!pstComParam) {
+		printf("pstComParma is NULL\n");
+		return;
+	}
+
+	for (HI_U32 i = 0; i < pstComParam->stModel.u32NetSegNum; ++i) {
+		for (HI_U32 j = 0; j < pstComParam->stModel.astSeg[i].u16DstNum; ++j) {
+			SvpSampleFreeBlob(&pstComParam->astDst[j]);
+			SvpSampleFreeBlob(&pstComParam->TemplateBlob[j]);
+			SvpSampleMemFree(pstComParam->SVP_SAMPLE_Trk_RES[j]);
+			SvpSampleFreeBlob(&pstComParam->SVP_SAMPLE_Trk_COF[i].cor);
+			SvpSampleFreeBlob(&pstComParam->SVP_SAMPLE_Trk_COF[i].bCor);
+			SvpSampleFreeBlob(&pstComParam->SVP_SAMPLE_Trk_COF[i].hann);
+		}
+
+		for (HI_U32 j = 0; j < pstComParam->stModel.astSeg[i].u16SrcNum; ++j) {
+			SvpSampleFreeBlob(&pstComParam->astSrc[j]);
+			SvpSampleCloseFile(pstComParam->fpSrc[j]);
+			 
+		}
+	}
+
+	
+	SvpSampleMemFree(&pstComParam->stTskBuf);
+	SvpSampleMemFree(&pstComParam->stTmpBuf);
+	HI_MPI_SVP_NNIE_UnloadModel(&(pstComParam->stModel));
+	SvpSampleMemFree(&pstComParam->stModelBuf);
+
+	memset(pstComParam, 0, sizeof(SVP_NNIE_ONE_SEG_Trk_S));
+}
+
+
+ /*
+ 只释放template前向所用的空间，单保留生成的template blob
+ */
+ void SvpSampleOneSegTrkDeinitTemplate(SVP_NNIE_ONE_SEG_Trk_S *pstComParam)
+	
+ {
+	 if (!pstComParam) {
+		 printf("pstComParma is NULL\n");
+		 return;
+	 }
+
+	 for (HI_U32 i = 0; i < pstComParam->stModel.u32NetSegNum; ++i) {
+		 for (HI_U32 j = 0; j < pstComParam->stModel.astSeg[i].u16DstNum; ++j) {
+			 SvpSampleFreeBlob(&pstComParam->astDst[j]);
+			// SvpSampleFreeBlob(&pstComParam->TemplateBlob[j]);		//保留template 提取的特征向量
+			 SvpSampleMemFree(pstComParam->SVP_SAMPLE_Trk_RES[j]);
+			 SvpSampleFreeBlob(&pstComParam->SVP_SAMPLE_Trk_COF[i].cor);
+			 SvpSampleFreeBlob(&pstComParam->SVP_SAMPLE_Trk_COF[i].bCor);
+			 SvpSampleFreeBlob(&pstComParam->SVP_SAMPLE_Trk_COF[i].hann);
+		 }
+
+		 for (HI_U32 j = 0; j < pstComParam->stModel.astSeg[i].u16SrcNum; ++j) {
+			 SvpSampleFreeBlob(&pstComParam->astSrc[j]);
+			 SvpSampleCloseFile(pstComParam->fpSrc[j]);
+			 
+		 }
+	 }
+
+
+	 SvpSampleMemFree(&pstComParam->stTskBuf);
+	 SvpSampleMemFree(&pstComParam->stTmpBuf);
+	 HI_MPI_SVP_NNIE_UnloadModel(&(pstComParam->stModel));
+	 SvpSampleMemFree(&pstComParam->stModelBuf);
+
+	// memset(pstComParam, 0, sizeof(SVP_NNIE_ONE_SEG_Trk_S));				//结构体信息在相关滤波分支还要用，这里不释放
+ }
+
+
+
 
 HI_S32 SvpSampleOneSegDetCnnInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_DET_S *pstComfParam, const HI_U8 netType)
 /*

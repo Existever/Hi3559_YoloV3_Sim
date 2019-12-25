@@ -123,6 +123,73 @@ typedef struct hiSVP_NNIE_ONE_SEG_S
     HI_U32 au32ClfNum[SVP_NNIE_MAX_OUTPUT_NUM];
 }SVP_NNIE_ONE_SEG_S;						//分类的时候网络模型结构体
 
+
+//跟踪结果结构体
+typedef struct hiSVP_SAMPLE_Trk_RES_S
+{
+	HI_S32   cx;
+	HI_S32   cy;	
+	HI_FLOAT  cof;
+	HI_U32 id;
+}SVP_SAMPLE_Trk_RES_S;
+
+//目标信息的的结构体
+typedef struct hiSVP_SAMPLE_TAR_INF_S
+{
+	HI_S32   cx;
+	HI_S32   cy;
+	HI_S32   w;
+	HI_S32    h;
+	HI_FLOAT  cof;
+	HI_U32 id;
+}SVP_SAMPLE_TAR_INF_S;
+
+typedef struct hiSVP_SAMPLE_Trk_COF_S
+{	
+	SVP_DST_BLOB_S bCor;			//blob层面的相关系数
+	SVP_DST_BLOB_S cor;				//resize之后的乘以hanning串口相关系数
+	SVP_DST_BLOB_S hann;			//汉明窗口
+}SVP_SAMPLE_Trk_COF_S;
+
+
+//Trk:tracker
+typedef struct hiSVP_NNIE_ONE_SEG_Trk_S
+{
+	HI_U32 u32TotalImgNum;
+	FILE *fpSrc[SVP_NNIE_MAX_INPUT_NUM];
+	
+
+	HI_U32 u32ModelBufSize;
+	HI_U32 u32TmpBufSize;
+
+	SVP_NNIE_MODEL_S    stModel;
+	SVP_MEM_INFO_S      stModelBuf;
+	SVP_MEM_INFO_S      stTmpBuf;
+
+	SVP_MEM_INFO_S      stTskBuf;
+	HI_U32 u32TaskBufSize;
+
+	SVP_SRC_BLOB_S astSrc[SVP_NNIE_MAX_INPUT_NUM];			//输入源节点
+	SVP_DST_BLOB_S astDst[SVP_NNIE_MAX_OUTPUT_NUM];			//输出目的节点
+	SVP_DST_BLOB_S TemplateBlob[SVP_NNIE_MAX_OUTPUT_NUM];			//模板分支
+	
+
+
+	SVP_NNIE_FORWARD_CTRL_S stCtrl;							//nnie前向控制箱信息
+
+	//跟踪后处理需要的信息											
+	
+	SVP_SAMPLE_Trk_RES_S *SVP_SAMPLE_Trk_RES[SVP_NNIE_MAX_OUTPUT_NUM];
+	SVP_SAMPLE_Trk_COF_S SVP_SAMPLE_Trk_COF[SVP_NNIE_MAX_OUTPUT_NUM];
+	SVP_SAMPLE_TAR_INF_S stTarget;
+	SVP_SAMPLE_TAR_INF_S stSearch;
+	HI_U32 TopK;								//相关系数选择最大的topk个峰值
+	HI_BOOL MakeTemplateBlob ;			//此次流程是否只是为了生存模板blob的标志
+	
+}SVP_NNIE_ONE_SEG_Trk_S;						//分类的时候网络模型结构体
+
+
+
 typedef struct hiSVP_SAMPLE_RESULT_MEM_HEAD_S
 {
     HI_U32 u32Type;
@@ -236,6 +303,16 @@ typedef enum hiSVP_SAMPLE_WK_DETECT_NET_FASTER_RCNN_TYPE_E
     SVP_SAMPLE_WK_DETECT_NET_FASTER_RCNN_TYPE_BUTT
 }SVP_SAMPLE_WK_DETECT_NET_FASTER_RCNN_TYPE_E;
 
+typedef enum hiSVP_SAMPLE_WK_TRACK_NET_TYPE_E
+{
+	SVP_SAMPLE_WK_TRACK_NET_SIAMESE = 0x0,  /*siameset*/ 
+
+	SVP_SAMPLE_WK_TRACK_NET_TYPE_BUTT
+}SVP_SAMPLE_WK_TRACK_NET_TYPE_E;
+
+
+
+
 typedef enum hiSVP_SAMPLE_WK_DETECT_NET_RFCN_TYPE_E
 {
     SVP_SAMPLE_WK_DETECT_NET_RFCN_RES50   =  0x0,
@@ -261,6 +338,11 @@ HI_S32 SvpSampleCnnClassificationForword(SVP_NNIE_ONE_SEG_S *pstClfParam, SVP_NN
 HI_S32 SvpSampleOneSegCnnInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_S *pstComParam);
 /* One-Segment cnn net mem deinit */
 void SvpSampleOneSegCnnDeinit(SVP_NNIE_ONE_SEG_S *pstComParam);
+
+//一阶段的track
+HI_S32 SvpSampleOneSegTrackInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_Trk_S *pstComfParam);
+void SvpSampleOneSegTrkDeinit(SVP_NNIE_ONE_SEG_Trk_S *pstComParam);
+void SvpSampleOneSegTrkDeinitTemplate(SVP_NNIE_ONE_SEG_Trk_S *pstComParam);
 
 /* detection relative functions */
 /* Base-Anchor information initialize */
@@ -302,6 +384,18 @@ HI_S32 SvpSampleWkLSTM(const HI_CHAR *pszModelName, const HI_CHAR *pszPicList[],
 HI_S32 SvpSampleLSTMInit(SVP_NNIE_CFG_S *pstClfCfg, SVP_NNIE_ONE_SEG_S *pstComParam, SVP_SAMPLE_LSTMRunTimeCtx *pstCtx);
 HI_S32 SvpSampleLSTMDeinit(SVP_NNIE_ONE_SEG_S *pstComParam);
 
+
+
+
+/**************Track***************/ 
+
+
+
+
+HI_S32 SvpSampleCnnTrack(const HI_CHAR *pszTemplateModelName, const HI_CHAR *pszSearchModelName, const HI_CHAR *paszTemplatePicList[], const HI_CHAR *paszSeaarchPicList[],  HI_S32 s32Cnt = 1);
+
+
+
 /************** run sample *******************/
 
 /*Classificacion*/
@@ -332,5 +426,11 @@ void SvpSampleCnnFcnSegnet();
 /*LSTM*/
 void SvpSampleRecurrentLSTMFC();
 void SvpSampleRecurrentLSTMRelu();
+
+
+/*Track*/
+void SvpSampleCnnTrackSiamese();
+
+
 
 #endif //__SVP_SAMPLE_WK_H__

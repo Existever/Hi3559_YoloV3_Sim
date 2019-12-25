@@ -58,3 +58,11 @@ RUNTIME.txt
 *.opendb
 
 *.htm
+
+mapper_param_my_yolov3/
+
+mapper_quant_my_yolov3/
+
+mapper_param_t/
+
+mapper_quant_t/

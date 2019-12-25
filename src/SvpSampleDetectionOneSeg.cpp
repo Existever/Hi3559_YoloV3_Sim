@@ -144,7 +144,7 @@ HI_S32 SvpSampleDetOneSegGetResult(SVP_NNIE_ONE_SEG_DET_S *pstDetParam,
 				string imgPath = imgNameRecoder[j].path;			
 				string saveBoxedImgPath = imgNameRecoder[j].fileName + "_det.png";
 				saveBoxedImgPath = strResultFolderDir + saveBoxedImgPath;
-				DrawBoxes(imgPath, saveBoxedImgPath.c_str(), vTaggedBoxes);
+				DrawBoxesNormAxis(imgPath, saveBoxedImgPath.c_str(), vTaggedBoxes);
 
 			}
 		

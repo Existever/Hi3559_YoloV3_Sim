@@ -37,7 +37,13 @@ HI_S32 SVPUtils_DrawBoxes(const SVP_SRC_BLOB_S *pstSrcBlob, SVPUtils_ImageType_E
     const HI_CHAR *pszDstImg, const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes,
     HI_U32 u32srcNumIdx = 0);
 
+//在图上画框，坐标是归一化后的坐标
+HI_S32 DrawBoxesNormAxis(const std::string img_path, const HI_CHAR *pszDstImgPath,
+	const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes);
 
-HI_S32 DrawBoxes(const std::string img_path, const HI_CHAR *pszDstImgPath,
+
+
+//在图上画框
+HI_S32 DrawBoxes(const  std::string img_path, const HI_CHAR *pszDstImgPath,
 	const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes);
 #endif

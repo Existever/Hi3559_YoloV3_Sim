@@ -103,8 +103,8 @@ HI_S32 SVPUtils_DrawBoxes(const SVP_SRC_BLOB_S *pstSrcBlob, SVPUtils_ImageType_E
     return HI_SUCCESS;
 }
 
-
-HI_S32 DrawBoxes(const string img_path, const HI_CHAR *pszDstImgPath,
+//在图上画框，坐标是归一化后的坐标
+HI_S32 DrawBoxesNormAxis(const string img_path, const HI_CHAR *pszDstImgPath,
 	 const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes)
 {	
 	cv::Mat dstMat=cv::imread(img_path, IMREAD_COLOR);
@@ -126,6 +126,42 @@ HI_S32 DrawBoxes(const string img_path, const HI_CHAR *pszDstImgPath,
 		stRect.w *= dstMat.cols;
 		stRect.h *= dstMat.rows;
 
+		printf("draw box :%6.2f %6.2f %6.2f %6.2f\n", stRect.x, stRect.y, stRect.w, stRect.h);
+
+		rectangle(dstMat, { (HI_S32)(stRect.x), (HI_S32)(stRect.y) }, { (HI_S32)(stRect.x + stRect.w), (HI_S32)(stRect.y + stRect.h) }, lineColor, 2, 1, 0);
+		putText(dstMat, std::to_string(stBox.u32Class), Point(stRect.x, stRect.y - 8), FONT_HERSHEY_SIMPLEX, fFontSize, fontColor, 1, 8);
+		putText(dstMat, std::to_string(stBox.fScore), Point(stRect.x, stRect.y + 8), FONT_HERSHEY_SIMPLEX, fFontSize, fontColor, 1, 8);
+	}
+#ifndef CV_DISP
+	imwrite(pszDstImgPath, dstMat);
+#else
+	imshow(pszDstImg, dstMat);
+	waitKey(0);
+#endif
+
+	return HI_SUCCESS;
+}
+
+
+
+//在图上画框
+HI_S32 DrawBoxes(const string img_path, const HI_CHAR *pszDstImgPath,
+	const std::vector<SVPUtils_TaggedBox_S> &vTaggedBoxes)
+{
+	cv::Mat dstMat = cv::imread(img_path, IMREAD_COLOR);
+
+	if (dstMat.empty()) {
+		printf("SVPUtils_DrawBoxesMy,read %s error", img_path.c_str());
+		return HI_FAILURE;
+
+	}
+	HI_FLOAT fFontSize = 0.5f;
+	Scalar fontColor(73, 255, 255);
+	Scalar lineColor(255, 0, 0);
+
+	for (SVPUtils_TaggedBox_S stBox : vTaggedBoxes)
+	{
+		SVPUtils_Rect_S stRect = stBox.stRect;
 		printf("draw box :%6.2f %6.2f %6.2f %6.2f\n", stRect.x, stRect.y, stRect.w, stRect.h);
 
 		rectangle(dstMat, { (HI_S32)(stRect.x), (HI_S32)(stRect.y) }, { (HI_S32)(stRect.x + stRect.w), (HI_S32)(stRect.y + stRect.h) }, lineColor, 2, 1, 0);

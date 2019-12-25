@@ -194,6 +194,9 @@ void SvpSampleFreeRPNBlob(SVP_BLOB_S *pstBlob);
 HI_S32 SvpSampleImgReadFromImglist(FILE *fp, SVP_BLOB_S *pstBlob, HI_U32 u32StartLine,
     vector<SVP_SAMPLE_FILE_NAME_PAIR>& imgNameRecoder);
 
+//从指定路径读取图像到指定blob
+HI_S32 SvpSampleImgReadToBlob(HI_CHAR *pImgPath, SVP_BLOB_S *pstBlob, IMG_INFO_S &stImgInfo);
+
 /**
  * Read u32Num images from multi FILE
  * every single image/featuremaps/vectors are stored by one binary file, each line of the imagelist file
